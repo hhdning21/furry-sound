@@ -3,13 +3,14 @@ import AudioUploader from './components/AudioUploader';
 import PlayerControls from './components/PlayerControls';
 import VisualizerCanvas from './components/VisualizerCanvas';
 import { useAudioAnalyzer } from './hooks/seAudioAnalyzer';
-import { AnalysisResult, TrackSource, VisualMode } from './types';
+import { AnalysisResult, AudioFeatures, TrackSource, VisualMode } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787';
 
 export default function App() {
   const [track, setTrack] = useState<TrackSource | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [audioFeatures, setAudioFeatures] = useState<AudioFeatures | null>(null);
   const [visualMode, setVisualMode] = useState<VisualMode>('auto');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string>('');
@@ -31,8 +32,17 @@ export default function App() {
       URL.revokeObjectURL(track.url);
     }
     analyzer.pause();
-    setTrack(nextTrack);
+    if (nextTrack.sourceType === 'preset' && nextTrack.analysisUrl) {
+      const proxyUrl = `${API_BASE_URL}/proxy-audio?url=${encodeURIComponent(nextTrack.analysisUrl)}`;
+      setTrack({
+        ...nextTrack,
+        url: proxyUrl
+      });
+    } else {
+      setTrack(nextTrack);
+    }
     setAnalysis(null);
+    setAudioFeatures(null);
     setError('');
   };
 
@@ -60,7 +70,7 @@ export default function App() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            url: track.url,
+            url: track.analysisUrl ?? track.url,
             name: track.name
           })
         });
@@ -71,8 +81,9 @@ export default function App() {
         throw new Error(`Backend analyze request failed: ${detail}`);
       }
 
-      const payload = (await response.json()) as { analysis: AnalysisResult };
+      const payload = (await response.json()) as { analysis: AnalysisResult; audioFeatures?: AudioFeatures | null };
       setAnalysis(payload.analysis);
+      setAudioFeatures(payload.audioFeatures ?? null);
       setVisualMode('auto');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unknown analysis error.');
@@ -96,10 +107,17 @@ export default function App() {
           onVisualModeChange={setVisualMode}
         />
         {error && <p className="error">{error}</p>}
+        {analyzer.playbackError && <p className="error">{analyzer.playbackError}</p>}
+        <p className="small">Playback status: {analyzer.playbackStatus}</p>
       </aside>
 
       <main className="canvas-wrap">
-        <VisualizerCanvas analysis={analysis} visualMode={visualMode} features={analyzer.features} />
+        <VisualizerCanvas
+          analysis={analysis}
+          visualMode={visualMode}
+          features={analyzer.features}
+          audioFeatures={audioFeatures}
+        />
       </main>
     </div>
   );

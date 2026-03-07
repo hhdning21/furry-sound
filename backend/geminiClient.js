@@ -1,54 +1,83 @@
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-function fallbackFromFilename(name = '') {
+const MOODS = ['calm', 'energetic', 'sad', 'happy'];
+const STYLES = ['pulses', 'smooth_waves', 'sharp_particles'];
+
+function moodFromName(name = '') {
   const lower = name.toLowerCase();
-  if (lower.includes('sad') || lower.includes('blue')) {
-    return {
-      mood: 'sad',
-      palette: ['#111736', '#2b3a7e', '#6d6ab5'],
+  if (lower.includes('sad') || lower.includes('blue') || lower.includes('rain')) {
+    return 'sad';
+  }
+  if (lower.includes('happy') || lower.includes('sun') || lower.includes('joy')) {
+    return 'happy';
+  }
+  if (lower.includes('rock') || lower.includes('edm') || lower.includes('beat') || lower.includes('energy')) {
+    return 'energetic';
+  }
+  return 'calm';
+}
+
+function fallbackVisualFromFeatures(audioFeatures = {}, fileName = '') {
+  const inferredMood = moodFromName(fileName);
+  const tempoNorm = Number(audioFeatures.tempoNorm || 0.5);
+  const brightness = Number(audioFeatures.brightness || 0.4);
+  const highEnergy = Number(audioFeatures.highEnergy || 0.4);
+  const volume = Number(audioFeatures.volume || 0.4);
+
+  let mood = inferredMood;
+  if (tempoNorm > 0.72 || volume > 0.62) {
+    mood = 'energetic';
+  } else if (brightness > 0.65 && volume > 0.35) {
+    mood = 'happy';
+  } else if (tempoNorm < 0.45 && brightness < 0.42) {
+    mood = 'sad';
+  }
+
+  const profiles = {
+    calm: {
+      palette: ['#0f2448', '#1b6170', '#4bb2ad'],
       animationStyle: 'smooth_waves',
-      motionSpeed: 0.7,
-      explanation: 'Fallback result: filename suggests a calmer/sadder atmosphere.'
-    };
-  }
-  if (lower.includes('happy') || lower.includes('sun')) {
-    return {
-      mood: 'happy',
-      palette: ['#1f4d10', '#99da24', '#ffe16d'],
-      animationStyle: 'pulses',
-      motionSpeed: 1.1,
-      explanation: 'Fallback result: filename suggests a brighter/happier atmosphere.'
-    };
-  }
-  if (lower.includes('rock') || lower.includes('edm') || lower.includes('beat')) {
-    return {
-      mood: 'energetic',
+      motionSpeed: 0.85
+    },
+    energetic: {
       palette: ['#2d1208', '#ff6b00', '#ffbe0b'],
       animationStyle: 'sharp_particles',
-      motionSpeed: 1.45,
-      explanation: 'Fallback result: filename suggests a high-energy atmosphere.'
-    };
-  }
+      motionSpeed: 1.45
+    },
+    sad: {
+      palette: ['#111736', '#2b3a7e', '#6d6ab5'],
+      animationStyle: 'pulses',
+      motionSpeed: 0.7
+    },
+    happy: {
+      palette: ['#1f4d10', '#99da24', '#ffe16d'],
+      animationStyle: 'pulses',
+      motionSpeed: 1.1
+    }
+  };
+
+  const chosen = profiles[mood];
+  const style = highEnergy > 0.68 ? 'sharp_particles' : chosen.animationStyle;
+  const speed = Math.max(0.45, Math.min(1.9, chosen.motionSpeed * (0.8 + tempoNorm * 0.55)));
+
   return {
-    mood: 'calm',
-    palette: ['#0f2448', '#1b6170', '#4bb2ad'],
-    animationStyle: 'smooth_waves',
-    motionSpeed: 0.9,
-    explanation: 'Fallback result: default calm profile was applied.'
+    mood,
+    palette: chosen.palette,
+    animationStyle: style,
+    motionSpeed: Number(speed.toFixed(2)),
+    explanation: 'Mapped from librosa features with local fallback logic.',
+    sections: []
   };
 }
 
-function normalizeResult(raw, fallbackName) {
-  const fallback = fallbackFromFilename(fallbackName);
+function normalizeResult(raw, fallback) {
   return {
-    mood: ['calm', 'energetic', 'sad', 'happy'].includes(raw?.mood) ? raw.mood : fallback.mood,
+    mood: MOODS.includes(raw?.mood) ? raw.mood : fallback.mood,
     palette:
       Array.isArray(raw?.palette) && raw.palette.length >= 3
-        ? raw.palette.slice(0, 5)
+        ? raw.palette.map((c) => String(c)).slice(0, 5)
         : fallback.palette,
-    animationStyle: ['pulses', 'smooth_waves', 'sharp_particles'].includes(raw?.animationStyle)
-      ? raw.animationStyle
-      : fallback.animationStyle,
+    animationStyle: STYLES.includes(raw?.animationStyle) ? raw.animationStyle : fallback.animationStyle,
     motionSpeed:
       typeof raw?.motionSpeed === 'number' && Number.isFinite(raw.motionSpeed)
         ? Math.min(2, Math.max(0.4, raw.motionSpeed))
@@ -63,16 +92,14 @@ function normalizeResult(raw, fallbackName) {
           .map((s) => ({
             start: Number(s.start) || 0,
             end: Number(s.end) || 0,
-            localMood: ['calm', 'energetic', 'sad', 'happy'].includes(s.localMood)
-              ? s.localMood
-              : fallback.mood
+            localMood: MOODS.includes(s.localMood) ? s.localMood : fallback.mood
           }))
-      : []
+      : fallback.sections || []
   };
 }
 
 function extractJsonObject(text) {
-  const cleaned = text.replace(/```json|```/gi, '').trim();
+  const cleaned = String(text || '').replace(/```json|```/gi, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
@@ -81,14 +108,18 @@ function extractJsonObject(text) {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-async function analyzeAudioWithGemini({ audioBuffer, mimeType, fileName }) {
+async function mapFeaturesWithGemini({ audioFeatures = {}, fileName = '', baseAnalysis = null }) {
+  const fallback = baseAnalysis || fallbackVisualFromFeatures(audioFeatures, fileName);
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return fallbackFromFilename(fileName);
+    return fallback;
   }
 
-  const prompt = `You are helping a hackathon MVP for converting music to visuals.
-Analyze this short audio clip and return ONLY a strict JSON object.
+  const prompt = `You are helping a hackathon MVP that maps music features to visuals.
+Given librosa features, return ONLY strict JSON.
+
+Input features:
+${JSON.stringify({ fileName, audioFeatures }, null, 2)}
 
 JSON schema:
 {
@@ -101,30 +132,16 @@ JSON schema:
 }
 
 Rules:
-- Keep motionSpeed between 0.4 and 2.0
-- palette should have 3 to 5 colors
-- explanation should be one short sentence
-- sections is optional but if provided use up to 6 sections
-- return JSON only, no markdown`;
+- motionSpeed in [0.4, 2.0]
+- palette length 3..5
+- short explanation mentioning beat/tempo or note/brightness
+- JSON only, no markdown`;
 
-  const requestBody = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: mimeType || 'audio/mpeg',
-              data: audioBuffer.toString('base64')
-            }
-          }
-        ]
-      }
-    ],
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 500
+      temperature: 0.25,
+      maxOutputTokens: 420
     }
   };
 
@@ -134,7 +151,7 @@ Rules:
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(body)
       }
     );
 
@@ -145,13 +162,15 @@ Rules:
 
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text).join('\n') || '';
-    const rawJson = extractJsonObject(text);
-    return normalizeResult(rawJson, fileName);
+    const raw = extractJsonObject(text);
+    return normalizeResult(raw, fallback);
   } catch (error) {
-    console.error('Gemini analysis failed, fallback is used.', error);
-    return fallbackFromFilename(fileName);
+    console.error('Gemini mapping failed, fallback is used.', error);
+    return fallback;
   }
 }
 
-module.exports = { analyzeAudioWithGemini };
-// backend/geminiClient.js
+module.exports = {
+  mapFeaturesWithGemini,
+  fallbackVisualFromFeatures
+};

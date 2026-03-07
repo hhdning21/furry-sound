@@ -20,6 +20,7 @@ export type AnalysisResult = {
 export type TrackSource = {
   name: string;
   url: string;
+  analysisUrl?: string;
   file: File | null;
   sourceType: 'upload' | 'preset';
 };
@@ -33,4 +34,15 @@ export type RealtimeFeatures = {
   volume: number;
   beat: number;
 };
-// frontend/src/types.ts
+
+export type AudioFeatures = {
+  tempo: number;
+  tempoNorm: number;
+  volume: number;
+  brightness: number;
+  lowEnergy: number;
+  midEnergy: number;
+  highEnergy: number;
+  dominantNote?: string;
+  beatTimes?: number[];
+};

@@ -72,8 +72,10 @@ def analyze(audio_path: Path):
     y, sr = librosa.load(str(audio_path), sr=None, mono=True)
 
     rms = librosa.feature.rms(y=y)[0]
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr).tolist()
     centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    chroma = librosa.feature.chroma_stft(y=y, sr=sr)
 
     stft = np.abs(librosa.stft(y=y, n_fft=2048, hop_length=512))
     freqs = librosa.fft_frequencies(sr=sr, n_fft=2048)
@@ -95,6 +97,10 @@ def analyze(audio_path: Path):
     volume = clamp01(rms_mean / 0.35)
     brightness = clamp01(float(np.mean(centroid)) / (sr / 2.0)) if centroid.size else 0.0
     tempo_norm = clamp01(float(tempo) / 180.0)
+
+    chroma_mean = np.mean(chroma, axis=1) if chroma.size else np.zeros(12)
+    note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    dominant_note = note_names[int(np.argmax(chroma_mean))] if chroma_mean.size else "C"
 
     mood = choose_mood(volume, float(tempo), brightness)
     style = MOOD_TO_STYLE[mood]
@@ -121,6 +127,8 @@ def analyze(audio_path: Path):
             "lowEnergy": float(round(low_norm, 4)),
             "midEnergy": float(round(mid_norm, 4)),
             "highEnergy": float(round(high_norm, 4)),
+            "dominantNote": dominant_note,
+            "beatTimes": [float(round(x, 3)) for x in beat_times[:32]],
         },
     }
 

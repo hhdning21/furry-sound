@@ -34,6 +34,8 @@ export function useAudioAnalyzer(src: string | null) {
 
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [features, setFeatures] = useState<RealtimeFeatures>(INITIAL_FEATURES);
+	const [playbackError, setPlaybackError] = useState<string>('');
+	const [playbackStatus, setPlaybackStatus] = useState<'idle' | 'loading' | 'ready' | 'playing' | 'error'>('idle');
 
 	useEffect(() => {
 		const audio = new Audio();
@@ -47,10 +49,19 @@ export function useAudioAnalyzer(src: string | null) {
 		const handlePlay = () => setIsPlaying(true);
 		const handlePause = () => setIsPlaying(false);
 		const handleEnd = () => setIsPlaying(false);
+		const handleLoadStart = () => setPlaybackStatus('loading');
+		const handleCanPlay = () => setPlaybackStatus('ready');
+		const handleError = () => {
+			setPlaybackStatus('error');
+			setPlaybackError('Audio failed to play. Try local upload MP3/WAV.');
+		};
 
 		audio.addEventListener('play', handlePlay);
 		audio.addEventListener('pause', handlePause);
 		audio.addEventListener('ended', handleEnd);
+		audio.addEventListener('loadstart', handleLoadStart);
+		audio.addEventListener('canplay', handleCanPlay);
+		audio.addEventListener('error', handleError);
 
 		return () => {
 			cancelAnimationFrame(frameRef.current);
@@ -58,6 +69,9 @@ export function useAudioAnalyzer(src: string | null) {
 			audio.removeEventListener('play', handlePlay);
 			audio.removeEventListener('pause', handlePause);
 			audio.removeEventListener('ended', handleEnd);
+			audio.removeEventListener('loadstart', handleLoadStart);
+			audio.removeEventListener('canplay', handleCanPlay);
+			audio.removeEventListener('error', handleError);
 
 			sourceRef.current?.disconnect();
 			analyserRef.current?.disconnect();
@@ -119,11 +133,20 @@ export function useAudioAnalyzer(src: string | null) {
 		if (!audioRef.current || !src) {
 			return;
 		}
+		setPlaybackError('');
+		setPlaybackStatus('loading');
 		await ensureGraph();
 		if (contextRef.current?.state === 'suspended') {
 			await contextRef.current.resume();
 		}
-		await audioRef.current.play();
+		try {
+			await audioRef.current.play();
+			setPlaybackStatus('playing');
+		} catch (_error) {
+			setPlaybackStatus('error');
+			setPlaybackError('Playback was blocked or failed. Try clicking Play again or upload a local file.');
+			return;
+		}
 
 		cancelAnimationFrame(frameRef.current);
 		frameRef.current = requestAnimationFrame(tick);
@@ -145,10 +168,12 @@ export function useAudioAnalyzer(src: string | null) {
 		() => ({
 			isPlaying,
 			features,
+			playbackError,
+			playbackStatus,
 			play,
 			pause,
 			toggle
 		}),
-		[features, isPlaying]
+		[features, isPlaying, playbackError, playbackStatus]
 	);
 }

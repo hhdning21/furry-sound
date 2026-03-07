@@ -4,8 +4,10 @@ const cors = require('cors');
 const multer = require('multer');
 const os = require('os');
 const path = require('path');
+const { Readable } = require('stream');
 const { spawn } = require('child_process');
 const { mkdtemp, rm, writeFile } = require('fs/promises');
+const { mapFeaturesWithGemini, fallbackVisualFromFeatures } = require('./geminiClient');
 
 const app = express();
 const upload = multer({
@@ -18,6 +20,38 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'music-animation-backend' });
+});
+
+app.get('/proxy-audio', async (req, res) => {
+  try {
+    const url = String(req.query.url || '');
+    if (!url || !/^https?:\/\//i.test(url)) {
+      return res.status(400).json({ error: 'Invalid preset URL.' });
+    }
+
+    const remote = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (MusicAnimationMVP)'
+      }
+    });
+
+    if (!remote.ok || !remote.body) {
+      return res.status(400).json({ error: `Failed to stream remote audio: ${remote.status}` });
+    }
+
+    const contentType = remote.headers.get('content-type') || 'audio/mpeg';
+    const contentLength = remote.headers.get('content-length');
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=600');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+
+    Readable.fromWeb(remote.body).pipe(res);
+  } catch (error) {
+    console.error('Proxy-audio endpoint error:', error);
+    return res.status(500).json({ error: 'Failed to proxy audio.' });
+  }
 });
 
 async function runLibrosaAnalyzer(fileBuffer, originalName) {
@@ -77,10 +111,13 @@ app.post('/analyze', upload.single('audio'), async (req, res) => {
       return res.status(500).json({ error: 'Analyzer did not return a valid analysis object.' });
     }
 
-    return res.json({
-      analysis: librosaResult.analysis,
-      audioFeatures: librosaResult.audioFeatures || null
+    const mapped = await mapFeaturesWithGemini({
+      audioFeatures: librosaResult.audioFeatures || {},
+      fileName: req.file.originalname,
+      baseAnalysis: librosaResult.analysis
     });
+
+    return res.json({ analysis: mapped, audioFeatures: librosaResult.audioFeatures || null });
   } catch (error) {
     console.error('Analyze endpoint error:', error);
     return res.status(500).json({ error: 'Failed to analyze audio.' });
@@ -94,9 +131,38 @@ app.post('/analyze-url', async (req, res) => {
       return res.status(400).json({ error: 'Missing audio URL.' });
     }
 
-    const remote = await fetch(url);
+    const remote = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (MusicAnimationMVP)'
+      }
+    });
     if (!remote.ok) {
-      return res.status(400).json({ error: `Failed to download remote audio: ${remote.status}` });
+      const fallbackFeatures = {
+        tempo: 110,
+        tempoNorm: 0.61,
+        volume: 0.48,
+        brightness: 0.52,
+        lowEnergy: 0.5,
+        midEnergy: 0.5,
+        highEnergy: 0.5,
+        dominantNote: 'A',
+        beatTimes: []
+      };
+      const fallbackAnalysis = fallbackVisualFromFeatures(fallbackFeatures, name || 'preset.mp3');
+      const mapped = await mapFeaturesWithGemini({
+        audioFeatures: fallbackFeatures,
+        fileName: name || 'preset.mp3',
+        baseAnalysis: fallbackAnalysis
+      });
+
+      return res.json({
+        analysis: {
+          ...mapped,
+          explanation: `${mapped.explanation} Preset URL download was blocked (${remote.status}), so fallback profile was used.`
+        },
+        audioFeatures: fallbackFeatures,
+        warning: `Remote audio provider blocked backend download (${remote.status}).`
+      });
     }
 
     const arrayBuffer = await remote.arrayBuffer();
@@ -107,10 +173,13 @@ app.post('/analyze-url', async (req, res) => {
       return res.status(500).json({ error: 'Analyzer did not return a valid analysis object.' });
     }
 
-    return res.json({
-      analysis: librosaResult.analysis,
-      audioFeatures: librosaResult.audioFeatures || null
+    const mapped = await mapFeaturesWithGemini({
+      audioFeatures: librosaResult.audioFeatures || {},
+      fileName: name || 'preset.mp3',
+      baseAnalysis: librosaResult.analysis
     });
+
+    return res.json({ analysis: mapped, audioFeatures: librosaResult.audioFeatures || null });
   } catch (error) {
     console.error('Analyze-url endpoint error:', error);
     return res.status(500).json({ error: 'Failed to analyze audio URL.' });

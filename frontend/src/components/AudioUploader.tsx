@@ -7,16 +7,16 @@ type Props = {
 
 const presets = [
   {
-    name: 'Preset A · Chill Loop',
-    url: 'https://cdn.pixabay.com/audio/2022/03/15/audio_a4f5f9f4a6.mp3'
+    name: 'Preset A · SoundHelix 1',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
   },
   {
-    name: 'Preset B · Energetic Beat',
-    url: 'https://cdn.pixabay.com/audio/2022/10/25/audio_f52f0c8f4f.mp3'
+    name: 'Preset B · SoundHelix 2',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
   },
   {
-    name: 'Preset C · Sad Piano',
-    url: 'https://cdn.pixabay.com/audio/2022/03/31/audio_bfcf7f8f6d.mp3'
+    name: 'Preset C · SoundHelix 3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
   }
 ];
 
@@ -51,6 +51,7 @@ export default function AudioUploader({ onTrackSelected }: Props) {
     onTrackSelected({
       name: selected.name,
       url: selected.url,
+      analysisUrl: selected.url,
       file: null,
       sourceType: 'preset'
     });
@@ -75,4 +76,3 @@ export default function AudioUploader({ onTrackSelected }: Props) {
     </div>
   );
 }
-import { useEffect, useRef, useState } from "react";

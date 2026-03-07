@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { AnalysisResult, Mood, RealtimeFeatures, VisualMode } from '../types';
+import { AnalysisResult, AudioFeatures, Mood, RealtimeFeatures, VisualMode } from '../types';
 
 type Props = {
   analysis: AnalysisResult | null;
   visualMode: VisualMode;
   features: RealtimeFeatures;
+  audioFeatures: AudioFeatures | null;
 };
 
 type ThemeConfig = {
@@ -32,7 +33,7 @@ function resolveTheme(analysis: AnalysisResult | null, visualMode: VisualMode): 
   return { mood, palette, speed, particleFactor, smoothness };
 }
 
-export default function VisualizerCanvas({ analysis, visualMode, features }: Props) {
+export default function VisualizerCanvas({ analysis, visualMode, features, audioFeatures }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const theme = useMemo(() => resolveTheme(analysis, visualMode), [analysis, visualMode]);
@@ -57,19 +58,26 @@ export default function VisualizerCanvas({ analysis, visualMode, features }: Pro
         canvas.height = height;
       }
 
-      const brightness = 0.38 + features.volume * 0.72;
+      const tempoBoost = 0.8 + (audioFeatures?.tempoNorm ?? 0.5) * 0.5;
+      const backendHigh = audioFeatures?.highEnergy ?? 0.5;
+      const noteGlow = (() => {
+        const note = (audioFeatures?.dominantNote ?? 'C').replace('#', '');
+        return (note.charCodeAt(0) % 7) / 10;
+      })();
+
+      const brightness = 0.32 + features.volume * 0.62 + (audioFeatures?.brightness ?? 0.4) * 0.25;
       const centerX = width / 2;
       const centerY = height / 2;
       const pulse = (features.low * 90 + features.beat * 30) * (theme.mood === 'energetic' ? 1.15 : 1);
       const radius = Math.min(width, height) * 0.13 + pulse;
-      const phase = (time / 1000) * theme.speed;
+      const phase = (time / 1000) * theme.speed * tempoBoost;
 
       const gradient = ctx.createLinearGradient(0, 0, width, height);
       gradient.addColorStop(0, theme.palette[0] ?? '#0a1020');
       gradient.addColorStop(0.5, theme.palette[1] ?? '#202b48');
       gradient.addColorStop(1, theme.palette[2] ?? '#334a8a');
       ctx.fillStyle = gradient;
-      ctx.globalAlpha = Math.max(0.2, brightness);
+      ctx.globalAlpha = Math.max(0.2, Math.min(1, brightness));
       ctx.fillRect(0, 0, width, height);
       ctx.globalAlpha = 1;
 
@@ -102,10 +110,10 @@ export default function VisualizerCanvas({ analysis, visualMode, features }: Pro
         }
       }
       ctx.closePath();
-      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.85, 0.15 + features.volume * 0.7)})`;
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.92, 0.18 + features.volume * 0.55 + noteGlow * 0.2)})`;
       ctx.fill();
 
-      const particles = Math.floor((12 + features.high * 120) * theme.particleFactor);
+      const particles = Math.floor((12 + (features.high * 0.65 + backendHigh * 0.35) * 130) * theme.particleFactor);
       for (let i = 0; i < particles; i += 1) {
         const angle = Math.random() * Math.PI * 2;
         const dist = radius + 18 + Math.random() * (60 + features.high * 120);
@@ -132,7 +140,7 @@ export default function VisualizerCanvas({ analysis, visualMode, features }: Pro
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [analysis, features.beat, features.high, features.low, features.mid, features.volume, theme]);
+  }, [analysis, audioFeatures, features.beat, features.high, features.low, features.mid, features.volume, theme]);
 
   return <canvas ref={canvasRef} />;
 }
