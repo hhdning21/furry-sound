@@ -87,6 +87,36 @@ app.post('/analyze', upload.single('audio'), async (req, res) => {
   }
 });
 
+app.post('/analyze-url', async (req, res) => {
+  try {
+    const { url, name } = req.body || {};
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'Missing audio URL.' });
+    }
+
+    const remote = await fetch(url);
+    if (!remote.ok) {
+      return res.status(400).json({ error: `Failed to download remote audio: ${remote.status}` });
+    }
+
+    const arrayBuffer = await remote.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const librosaResult = await runLibrosaAnalyzer(buffer, name || 'preset.mp3');
+    if (!librosaResult?.analysis) {
+      return res.status(500).json({ error: 'Analyzer did not return a valid analysis object.' });
+    }
+
+    return res.json({
+      analysis: librosaResult.analysis,
+      audioFeatures: librosaResult.audioFeatures || null
+    });
+  } catch (error) {
+    console.error('Analyze-url endpoint error:', error);
+    return res.status(500).json({ error: 'Failed to analyze audio URL.' });
+  }
+});
+
 const port = Number(process.env.PORT || 8787);
 app.listen(port, () => {
   console.log(`Music animation backend running on http://localhost:${port}`);

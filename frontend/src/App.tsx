@@ -44,28 +44,31 @@ export default function App() {
     setIsAnalyzing(true);
 
     try {
-      let file: File;
+      let response: Response;
+
       if (track.file) {
-        file = track.file;
+        const formData = new FormData();
+        formData.append('audio', track.file);
+        response = await fetch(`${API_BASE_URL}/analyze`, {
+          method: 'POST',
+          body: formData
+        });
       } else {
-        const fetched = await fetch(track.url);
-        if (!fetched.ok) {
-          throw new Error('Failed to fetch preset audio file.');
-        }
-        const blob = await fetched.blob();
-        file = new File([blob], `${track.name}.mp3`, { type: blob.type || 'audio/mpeg' });
+        response = await fetch(`${API_BASE_URL}/analyze-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: track.url,
+            name: track.name
+          })
+        });
       }
 
-      const formData = new FormData();
-      formData.append('audio', file);
-
-      const response = await fetch(`${API_BASE_URL}/analyze`, {
-        method: 'POST',
-        body: formData
-      });
-
       if (!response.ok) {
-        throw new Error('Backend analyze request failed.');
+        const detail = await response.text();
+        throw new Error(`Backend analyze request failed: ${detail}`);
       }
 
       const payload = (await response.json()) as { analysis: AnalysisResult };
