@@ -35,6 +35,10 @@ export class AccessibleRhythmMode {
     
     // Accessibility mode settings
     this.accessibilityMode = false;
+
+    // PERFORMANCE: Reuse arrays in-place and keep dynamic object counts bounded.
+    this.maxParticles = 140;
+    this.maxBassWaves = 28;
   }
 
   /**
@@ -158,32 +162,34 @@ export class AccessibleRhythmMode {
    * HEARING-IMPAIRED BENEFIT: Shows texture and rhythm details
    */
   _drawParticles(ctx, treble, theme, scaleFactor) {
-    // Update existing particles
-    this.particles = this.particles.filter(p => {
+    // PERFORMANCE: In-place particle compaction (avoids creating a new array every frame).
+    let writeIndex = 0;
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
       p.life -= 0.015;
       p.y -= p.vy;
       p.x += p.vx;
-      
+
       if (p.life > 0) {
+        this.particles[writeIndex++] = p;
         const size = p.size * scaleFactor;
         const alpha = p.life * 0.7;
         ctx.fillStyle = `rgba(180, 140, 255, ${alpha})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
         ctx.fill();
-        
-        return true;
       }
-      return false;
-    });
+    }
+    this.particles.length = writeIndex;
     
     // Create new particles on treble activity
     if (treble > 0.3 && Math.random() < treble * 0.5) {
       const count = this.accessibilityMode ? 2 : 4;
       for (let i = 0; i < count; i++) {
+        if (this.particles.length >= this.maxParticles) break;
         this.particles.push({
-          x: Math.random() * ctx.canvas.width,
-          y: ctx.canvas.height * 0.8,
+          x: Math.random() * ctx.canvas.clientWidth,
+          y: ctx.canvas.clientHeight * 0.8,
           vx: (Math.random() - 0.5) * 2,
           vy: 1 + Math.random() * 2,
           size: (3 + Math.random() * 4) * (this.accessibilityMode ? 1.5 : 1),
@@ -205,24 +211,26 @@ export class AccessibleRhythmMode {
         alpha: 0.8,
         speed: 3 + bass * 4
       });
+      if (this.bassWaves.length > this.maxBassWaves) this.bassWaves.shift();
     }
     
-    // Update and draw existing waves
-    this.bassWaves = this.bassWaves.filter(wave => {
+    // PERFORMANCE: In-place compaction avoids per-frame filter allocations.
+    let writeIndex = 0;
+    for (let i = 0; i < this.bassWaves.length; i++) {
+      const wave = this.bassWaves[i];
       wave.radius += wave.speed;
       wave.alpha *= 0.96;
       
       if (wave.alpha > 0.05) {
+        this.bassWaves[writeIndex++] = wave;
         ctx.strokeStyle = `rgba(255, 100, 50, ${wave.alpha})`;
         ctx.lineWidth = this.accessibilityMode ? 4 : 2;
         ctx.beginPath();
         ctx.arc(cx, cy, wave.radius, 0, Math.PI * 2);
         ctx.stroke();
-        
-        return true;
       }
-      return false;
-    });
+    }
+    this.bassWaves.length = writeIndex;
   }
 
   render(ctx, data, t, width, height, theme, sensitivity) {

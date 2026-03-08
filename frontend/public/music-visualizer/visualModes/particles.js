@@ -12,11 +12,18 @@ export class ParticleStormMode {
   constructor() {
     this.particles = [];
     this.initialized = false;
+    this.lastWidth = 0;
+    this.lastHeight = 0;
   }
 
-  _init(width, height, count = 6000) {
-    if (this.initialized) return;
-    this.particles = Array.from({ length: count }, () => ({
+  _init(width, height) {
+    // PERFORMANCE: Scale particle count by screen area and cap it to avoid CPU spikes.
+    const targetCount = Math.min(3200, Math.max(1400, Math.floor((width * height) / 650)));
+    if (this.initialized && this.lastWidth === width && this.lastHeight === height && this.particles.length === targetCount) {
+      return;
+    }
+
+    this.particles = Array.from({ length: targetCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
       vx: (Math.random() - 0.5) * 0.6,
@@ -24,6 +31,8 @@ export class ParticleStormMode {
       size: Math.random() * 1.8 + 0.2
     }));
     this.initialized = true;
+    this.lastWidth = width;
+    this.lastHeight = height;
   }
 
   render(ctx, data, t, width, height, theme, sensitivity) {
@@ -34,15 +43,16 @@ export class ParticleStormMode {
     if (data.beat) {
       const cx = width / 2;
       const cy = height / 2;
-      this.particles.forEach((p, i) => {
-        if (i % 7 !== 0) return;
+      for (let i = 0; i < this.particles.length; i++) {
+        const p = this.particles[i];
+        if (i % 7 !== 0) continue;
         const dx = p.x - cx;
         const dy = p.y - cy;
         const d = Math.hypot(dx, dy) || 1;
         const boost = data.bass * 2.5 * sensitivity.beat;
         p.vx += (dx / d) * boost;
         p.vy += (dy / d) * boost;
-      });
+      }
     }
 
     const rot = (data.mid * 0.04 + 0.003) * sensitivity.motion;
@@ -52,6 +62,12 @@ export class ParticleStormMode {
     ctx.save();
     ctx.fillStyle = 'rgba(2,4,12,0.3)';
     ctx.fillRect(0, 0, width, height);
+
+    // PERFORMANCE: Compute flash color once per frame (same for all particles).
+    const flash = data.treble * 0.9;
+    const alpha = 0.1 + flash * 0.7;
+    const extraSize = flash * 1.5;
+    ctx.fillStyle = `rgba(178, 228, 255, ${alpha})`;
 
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
@@ -71,10 +87,7 @@ export class ParticleStormMode {
 
       // ACCESSIBILITY: Treble frequency controls brightness
       // Brighter particles = higher frequencies, helping visualize sound texture
-      const flash = data.treble * 0.9;
-      const alpha = 0.1 + flash * 0.7;
-      ctx.fillStyle = `rgba(178, 228, 255, ${alpha})`;
-      ctx.fillRect(p.x, p.y, p.size + flash * 1.5, p.size + flash * 1.5);
+      ctx.fillRect(p.x, p.y, p.size + extraSize, p.size + extraSize);
     }
 
     ctx.restore();

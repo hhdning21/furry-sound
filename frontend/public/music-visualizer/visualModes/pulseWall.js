@@ -20,6 +20,11 @@ export class RhythmPulseWallMode {
     ctx.fillStyle = 'rgba(5,8,18,0.28)';
     ctx.fillRect(0, 0, width, height);
 
+    // PERFORMANCE: Set expensive shadow state once per frame instead of per bar.
+    const glow = 14 + data.amplitude * 22;
+    ctx.shadowColor = theme.primary;
+    ctx.shadowBlur = glow;
+
     for (let i = 0; i < bars; i++) {
       const x = i * barW;
       const norm = i / (bars - 1);
@@ -41,11 +46,8 @@ export class RhythmPulseWallMode {
       // Low frequency (bass) = red/orange, High frequency (treble) = blue/purple
       // Helps hearing-impaired users distinguish frequency ranges visually
       const hue = 270 - spec * 240;
-      const glow = 14 + data.amplitude * 22;
 
       ctx.fillStyle = `hsla(${hue}, 92%, ${50 + spec * 25}%, ${0.24 + data.amplitude * 0.65})`;
-      ctx.shadowColor = theme.primary;
-      ctx.shadowBlur = glow;
       ctx.fillRect(x + gap / 2, y - push, barW - gap, h + push);
     }
 

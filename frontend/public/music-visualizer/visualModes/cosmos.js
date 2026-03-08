@@ -14,6 +14,8 @@ export class CosmicConcertMode {
     this.stars = [];
     this.trails = [];
     this.ready = false;
+    this.nebulaGradient = null;
+    this.nebulaKey = '';
   }
 
   _init(width, height) {
@@ -31,19 +33,25 @@ export class CosmicConcertMode {
     this._init(width, height);
 
     ctx.save();
-    const nebula = ctx.createRadialGradient(
-      width * 0.45,
-      height * 0.45,
-      10,
-      width * 0.45,
-      height * 0.45,
-      width * 0.65
-    );
-    nebula.addColorStop(0, `${theme.primary}22`);
-    nebula.addColorStop(1, 'rgba(0,0,0,0)');
+    // PERFORMANCE: Reuse gradient until size/theme changes (avoid recreating every frame).
+    const nextNebulaKey = `${width}x${height}-${theme.primary}`;
+    if (this.nebulaKey !== nextNebulaKey) {
+      const nebula = ctx.createRadialGradient(
+        width * 0.45,
+        height * 0.45,
+        10,
+        width * 0.45,
+        height * 0.45,
+        width * 0.65
+      );
+      nebula.addColorStop(0, `${theme.primary}22`);
+      nebula.addColorStop(1, 'rgba(0,0,0,0)');
+      this.nebulaGradient = nebula;
+      this.nebulaKey = nextNebulaKey;
+    }
     ctx.fillStyle = 'rgba(3,5,13,0.35)';
     ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = nebula;
+    ctx.fillStyle = this.nebulaGradient;
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
@@ -66,6 +74,8 @@ export class CosmicConcertMode {
     // Clear visual indicator of rhythm timing and beat strength
     if (data.beat) {
       this.trails.push({ r: 12, life: 1, power: Math.max(0.45, data.bass * sensitivity.beat) });
+      // PERFORMANCE: Keep trail list bounded to avoid long frame spikes.
+      if (this.trails.length > 32) this.trails.shift();
     }
 
     for (let i = this.trails.length - 1; i >= 0; i--) {

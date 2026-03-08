@@ -39,15 +39,16 @@ export class ResonanceWaterMode {
 
     // ACCESSIBILITY: Horizontal waves show high-frequency/treble activity
     // More wave movement = more high-frequency sound content
+    // PERFORMANCE: Batch wave lines into one stroke call instead of one stroke per line.
+    const alpha = 0.04 + data.treble * 0.08;
+    ctx.strokeStyle = `rgba(120,220,255,${alpha})`;
+    ctx.beginPath();
     for (let y = 0; y < height; y += 8) {
       const wave = Math.sin(y * 0.06 + t * 1.2) * (4 + data.treble * 12);
-      const alpha = 0.04 + data.treble * 0.08;
-      ctx.strokeStyle = `rgba(120,220,255,${alpha})`;
-      ctx.beginPath();
       ctx.moveTo(0, y + wave);
       ctx.lineTo(width, y - wave);
-      ctx.stroke();
     }
+    ctx.stroke();
 
     // ACCESSIBILITY: Ripples fade as they expand, showing rhythm timing
     // Recent beats = bright ripples, older beats = faded ripples

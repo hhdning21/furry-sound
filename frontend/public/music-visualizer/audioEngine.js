@@ -36,6 +36,34 @@ export class AudioEngine {
     this.lastBeatTime = 0;
     this.section = 'Intro';
     this.sectionHoldUntil = 0;
+
+    // PERFORMANCE: Cache expensive analysis values to reduce per-frame CPU load.
+    this.pitch = 0;
+    this.pitchFrame = 0;
+    this.pitchEveryNFrames = 4;
+    this.bandRanges = {};
+  }
+
+  // PERFORMANCE: Precompute frequency bin ranges once per band instead of every frame.
+  _getBandRange(fromHz, toHz) {
+    const key = `${fromHz}-${toHz}`;
+    const cached = this.bandRanges[key];
+    if (cached && cached.length === this.freqData.length && cached.sampleRate === this.ctx.sampleRate) {
+      return cached;
+    }
+
+    const nyquist = this.ctx.sampleRate / 2;
+    const start = Math.floor((fromHz / nyquist) * this.freqData.length);
+    const end = Math.max(start + 1, Math.floor((toHz / nyquist) * this.freqData.length));
+    const range = {
+      start,
+      end,
+      span: Math.max(1, end - start),
+      length: this.freqData.length,
+      sampleRate: this.ctx.sampleRate
+    };
+    this.bandRanges[key] = range;
+    return range;
   }
 
   async initWithMediaElement(audioEl) {
@@ -146,12 +174,10 @@ export class AudioEngine {
   // Mid (220-2000Hz) = Vocals/snare → Blue colors, medium shapes
   // Treble (2000-9000Hz) = Cymbals/hi-hat → Purple colors, small particles
   _avgBand(fromHz, toHz) {
-    const nyquist = this.ctx.sampleRate / 2;
-    const start = Math.floor((fromHz / nyquist) * this.freqData.length);
-    const end = Math.max(start + 1, Math.floor((toHz / nyquist) * this.freqData.length));
+    const { start, end, span } = this._getBandRange(fromHz, toHz);
     let sum = 0;
     for (let i = start; i < end && i < this.freqData.length; i++) sum += this.freqData[i];
-    return sum / ((end - start) * 255);
+    return sum / (span * 255);
   }
 
   _estimatePitch() {
@@ -265,7 +291,12 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     const { beat, beatIntensity, kickDetected, snareDetected, hihatDetected } = 
       this._detectBeat(amplitude, now, beatSensitivity, bass, mid, treble);
-    const pitch = this._estimatePitch();
+    // PERFORMANCE: Pitch detection is O(n²), so run it less frequently and reuse cached value.
+    this.pitchFrame += 1;
+    if (this.pitchFrame % this.pitchEveryNFrames === 0) {
+      this.pitch = this._estimatePitch();
+    }
+    const pitch = this.pitch;
     const section = this._updateSection(amplitude, beatIntensity, now);
 
     // ACCESSIBILITY: Return comprehensive rhythm data for visual mapping
