@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Music Visualizer</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="hud">
+      <h1>Neon Music Visualizer</h1>
+      <div class="controls">
+        <input id="fileInput" type="file" accept="audio/*" />
+        <button id="playBtn" disabled>Play</button>
+        <button id="pauseBtn" disabled>Pause</button>
+      </div>
+      <p id="status">Upload a music file to begin.</p>
+      <audio id="audio" controls></audio>
+      <div class="legend">
+        <span>Volume → line thickness</span>
+        <span>Beat → pulses</span>
+        <span>Pitch → vertical motion</span>
+        <span>Spectrum → color</span>
+      </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
