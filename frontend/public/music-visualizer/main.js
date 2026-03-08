@@ -34,6 +34,11 @@ const modes = {
   interactive: new InteractiveRhythmMode()
 };
 
+// Set audio element for interactive mode
+if (modes.interactive) {
+  modes.interactive.audioElement = audioPlayer;
+}
+
 let activeMode = 'water';
 let prevMode = 'water';
 let transition = 1;
@@ -88,6 +93,7 @@ const ui = setupUI({
   streamBtn: document.getElementById('streamBtn'),
   streamUrl: document.getElementById('streamUrl'),
   modeSelect: document.getElementById('modeSelect'),
+  difficultySelect: document.getElementById('difficultySelect'),
   themeSelect: document.getElementById('themeSelect'),
   ampSensitivity: document.getElementById('ampSensitivity'),
   beatSensitivity: document.getElementById('beatSensitivity'),
@@ -97,6 +103,9 @@ const ui = setupUI({
     await engine.loadFile(file);
   },
   onPlay: async () => {
+    if (activeMode === 'interactive' && modes.interactive?.startCountdown) {
+      modes.interactive.startCountdown(3);
+    }
     await engine.play();
   },
   onPause: () => {
@@ -127,8 +136,17 @@ const ui = setupUI({
     } else {
       visualLegend.style.display = 'none';
     }
+  },
+  onDifficultyChange: (difficulty) => {
+    if (modes.interactive?.setDifficulty) {
+      modes.interactive.setDifficulty(difficulty);
+    }
   }
 });
+
+if (modes.interactive?.setDifficulty) {
+  modes.interactive.setDifficulty('mid');
+}
 // ACCESSIBILITY: Update visual indicators for hearing-impaired users
 // Provides clear, non-audio feedback about rhythm and musical structure
 function updateAccessibility(data) {

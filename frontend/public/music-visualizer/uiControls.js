@@ -13,6 +13,7 @@ export function setupUI({
   streamBtn,
   streamUrl,
   modeSelect,
+  difficultySelect,
   themeSelect,
   ampSensitivity,
   beatSensitivity,
@@ -23,7 +24,8 @@ export function setupUI({
   onPause,
   onMic,
   onStream,
-  onModeChange
+  onModeChange,
+  onDifficultyChange
 }) {
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
@@ -36,6 +38,9 @@ export function setupUI({
   streamBtn.addEventListener('click', () => onStream(streamUrl.value.trim()));
 
   modeSelect.addEventListener('change', () => onModeChange(modeSelect.value));
+  if (difficultySelect && onDifficultyChange) {
+    difficultySelect.addEventListener('change', () => onDifficultyChange(difficultySelect.value));
+  }
 
   return {
     getMode: () => modeSelect.value,
