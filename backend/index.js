@@ -18,6 +18,15 @@ const upload = multer({
 app.use(cors());
 app.use(express.json());
 
+// Railway / reverse-proxy compatibility: allow both /health and /api/health,
+// /analyze and /api/analyze, etc.
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/api/')) {
+    req.url = req.url.replace(/^\/api/, '');
+  }
+  next();
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'music-animation-backend' });
 });
