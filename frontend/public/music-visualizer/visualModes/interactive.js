@@ -51,6 +51,7 @@ export class InteractiveRhythmMode {
     this._bgParticlesInited = false;
     this._bgW = 0;
     this._bgH = 0;
+    this._stormDrift = { x: 0, y: 0 };
 
     // End screen
     this.hasEnded = false;
@@ -330,7 +331,9 @@ export class InteractiveRhythmMode {
       y: Math.random() * height,
       vx: (Math.random() - 0.5) * 0.55,
       vy: (Math.random() - 0.5) * 0.55,
-      size: Math.random() * 1.6 + 0.35
+      size: Math.random() * 1.8 + 0.35,
+      twinkle: Math.random() * Math.PI * 2,
+      depth: 0.55 + Math.random() * 0.75
     }));
 
     this._bgParticlesInited = true;
@@ -340,6 +343,14 @@ export class InteractiveRhythmMode {
 
   _renderParticleStormBackground(ctx, data, width, height, theme) {
     this._initBgParticles(width, height);
+
+    const primary = theme?.primary || '#b2e4ff';
+    const secondary = theme?.secondary || '#7da7ff';
+    const accent = theme?.accent || '#effbff';
+
+    // Slow wind-like drift so the storm has clear directional movement.
+    this._stormDrift.x = this._stormDrift.x * 0.95 + (data.mid - 0.5) * 0.035;
+    this._stormDrift.y = this._stormDrift.y * 0.95 + (data.treble - 0.5) * 0.025;
 
     // Beat burst from center (Particle Storm behavior)
     if (data.beat) {
@@ -351,7 +362,7 @@ export class InteractiveRhythmMode {
         const dx = p.x - cx;
         const dy = p.y - cy;
         const d = Math.hypot(dx, dy) || 1;
-        const boost = data.bass * 2.4;
+        const boost = data.bass * 3.1 + 0.2;
         p.vx += (dx / d) * boost;
         p.vy += (dy / d) * boost;
       }
@@ -362,24 +373,30 @@ export class InteractiveRhythmMode {
     const cos = Math.cos(rot);
 
     const flash = data.treble * 0.9;
-    const alpha = 0.06 + flash * 0.32;
-    const extraSize = flash * 1.2;
-    const particleColor = theme?.primary || '#b2e4ff';
+    const alpha = 0.12 + flash * 0.4;
+    const extraSize = flash * 1.35;
 
     ctx.save();
-    ctx.fillStyle = `rgba(5, 8, 16, ${0.16 + data.amplitude * 0.06})`;
+    const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+    bgGradient.addColorStop(0, `rgba(5, 8, 16, ${0.5 + data.amplitude * 0.08})`);
+    bgGradient.addColorStop(1, `rgba(10, 14, 24, ${0.54 + data.amplitude * 0.08})`);
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = particleColor;
-    ctx.globalAlpha = alpha;
+    // Center glow on beat to make storm pulses easier to perceive.
+    const glow = ctx.createRadialGradient(width * 0.5, height * 0.5, 0, width * 0.5, height * 0.5, Math.max(width, height) * 0.42);
+    glow.addColorStop(0, `rgba(140, 190, 255, ${0.08 + data.bass * 0.18})`);
+    glow.addColorStop(1, 'rgba(140, 190, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
 
     for (let i = 0; i < this.bgParticles.length; i++) {
       const p = this.bgParticles[i];
 
       const vx = p.vx * cos - p.vy * sin;
       const vy = p.vx * sin + p.vy * cos;
-      p.vx = vx * 0.992;
-      p.vy = vy * 0.992;
+      p.vx = vx * 0.992 + this._stormDrift.x * (0.3 + p.depth * 0.4);
+      p.vy = vy * 0.992 + this._stormDrift.y * (0.3 + p.depth * 0.4);
 
       p.x += p.vx;
       p.y += p.vy;
@@ -389,8 +406,20 @@ export class InteractiveRhythmMode {
       if (p.y < 0) p.y += height;
       if (p.y > height) p.y -= height;
 
-      const s = p.size + extraSize;
+      p.twinkle += 0.02 + p.depth * 0.01;
+      const twinkle = 0.65 + Math.sin(p.twinkle) * 0.35;
+      const s = (p.size + extraSize) * (0.72 + p.depth * 0.7);
+      const speed = Math.hypot(p.vx, p.vy);
+      const color = speed > 1.8 ? accent : i % 3 === 0 ? secondary : primary;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = Math.min(0.95, alpha * (0.55 + p.depth * 0.7) * twinkle);
       ctx.fillRect(p.x, p.y, s, s);
+
+      // Tiny streak gives each particle a storm-like trail.
+      if (speed > 1.25) {
+        ctx.globalAlpha *= 0.38;
+        ctx.fillRect(p.x - p.vx * 1.8, p.y - p.vy * 1.8, Math.max(1, s * 0.55), Math.max(1, s * 0.55));
+      }
     }
 
     ctx.globalAlpha = 1;
