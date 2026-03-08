@@ -235,8 +235,12 @@ export class AudioEngine {
     // Kick: strong bass presence (20-220Hz) - creates large circle pulses
     const kickDetected = bass > 0.5 && beat;
     
-    // Snare: mid-frequency spike (220-2000Hz) with sharp attack - creates triangle flashes
-    const snareDetected = mid > 0.45 && flux > 0.08 && !kickDetected;
+    // Snare: mid-frequency transient (220-2000Hz).
+    // PERFORMANCE/UX: Use a slightly softer threshold so triangle cues appear consistently.
+    const snareDetected = !kickDetected && (
+      (beat && mid > 0.28) ||
+      (mid > 0.42 && flux > 0.04)
+    );
     
     // Hi-hat: treble energy (2000-9000Hz) - creates small particle bursts
     const hihatDetected = treble > 0.35;

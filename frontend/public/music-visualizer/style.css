@@ -44,8 +44,43 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.panel-toggle {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.panel.collapsed {
+  width: 56px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.panel.collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+.panel.collapsed h1,
+.panel.collapsed .group,
+.panel.collapsed .status,
+.panel.collapsed audio {
+  display: none;
+}
+
 h1 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 1.05rem;
   color: #b9d9ff;
 }

@@ -2,8 +2,8 @@ import { AudioEngine } from './audioEngine.js';
 import { ResonanceWaterMode } from './visualModes/water.js';
 import { ParticleStormMode } from './visualModes/particles.js';
 import { RhythmPulseWallMode } from './visualModes/pulseWall.js';
-import { CosmicConcertMode } from './visualModes/cosmos.js';
 import { AccessibleRhythmMode } from './visualModes/accessible.js';
+import { InteractiveRhythmMode } from './visualModes/interactive.js';
 import { setupUI, setupRhythmMarkers } from './uiControls.js';
 
 const canvas = document.getElementById('stage');
@@ -15,6 +15,8 @@ const beatLabel = document.getElementById('beatLabel');
 const beatIndicator = document.getElementById('beatIndicator');
 const rhythmMarkersEl = document.getElementById('rhythmMarkers');
 const micBtn = document.getElementById('micBtn');
+const controlPanel = document.getElementById('controlPanel');
+const panelToggleBtn = document.getElementById('panelToggleBtn');
 const visualLegend = document.getElementById('visualLegend');
 const accessibilityToggle = document.getElementById('accessibilityToggle');
 
@@ -28,8 +30,8 @@ const modes = {
   water: new ResonanceWaterMode(),
   particles: new ParticleStormMode(),
   pulseWall: new RhythmPulseWallMode(),
-  cosmos: new CosmicConcertMode(),
-  accessible: new AccessibleRhythmMode()  // Designed for hearing-impaired users
+  accessible: new AccessibleRhythmMode(),  // Designed for hearing-impaired users
+  interactive: new InteractiveRhythmMode()
 };
 
 let activeMode = 'water';
@@ -58,6 +60,16 @@ function resizeCanvas() {
 
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+
+// UI: Collapsible left panel to free up screen space when needed.
+if (controlPanel && panelToggleBtn) {
+  panelToggleBtn.addEventListener('click', () => {
+    const collapsed = controlPanel.classList.toggle('collapsed');
+    panelToggleBtn.textContent = collapsed ? '▶' : '◀';
+    panelToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+    panelToggleBtn.title = collapsed ? 'Expand panel' : 'Collapse panel';
+  });
+}
 
 // ACCESSIBILITY: Handle accessibility mode toggle
 // Enables enhanced contrast, larger shapes, and simplified visuals

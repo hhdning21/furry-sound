@@ -92,6 +92,126 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.rhythm-game {
+  position: relative;
+}
+
+.rhythm-track {
+  position: relative;
+  height: 420px;
+  border: 1px solid #2a3350;
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg, transparent 24.5%, #232c45 24.5%, #232c45 25.5%, transparent 25.5%),
+    linear-gradient(90deg, transparent 49.5%, #232c45 49.5%, #232c45 50.5%, transparent 50.5%),
+    linear-gradient(90deg, transparent 74.5%, #232c45 74.5%, #232c45 75.5%, transparent 75.5%),
+    #0a1021;
+  overflow: hidden;
+}
+
+.rhythm-hitline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 88%;
+  height: 3px;
+  background: linear-gradient(90deg, #3f7bff, #77a8ff, #3f7bff);
+  box-shadow: 0 0 10px rgba(95, 148, 255, 0.7);
+}
+
+.rhythm-note {
+  position: absolute;
+  width: 25%;
+  transform: translateX(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #f3f7ff;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.rhythm-note.type-tap {
+  background: #4e7dff;
+}
+
+.rhythm-note.type-accent {
+  background: #ff8a3d;
+}
+
+.rhythm-note.type-hold {
+  background: linear-gradient(180deg, #62a4ff 0%, #2f5fc9 100%);
+  border: 1px solid #8bb6ff;
+}
+
+.rhythm-lane-inputs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px;
+  background: linear-gradient(180deg, transparent, rgba(9, 14, 30, 0.92));
+}
+
+.lane-button {
+  margin-top: 0;
+  background: #17213c;
+  border: 1px solid #334166;
+}
+
+.rhythm-inline-stats {
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.judge-chip {
+  margin-top: 10px;
+  font-weight: 700;
+}
+
+.judge-perfect {
+  color: #79ffb1;
+}
+
+.judge-good {
+  color: #ffd36d;
+}
+
+.judge-miss {
+  color: #ff8094;
+}
+
+.rhythm-results .rhythm-kv {
+  grid-template-columns: 150px 1fr;
+}
+
+.rhythm-hitlog ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.rhythm-hitlog li {
+  line-height: 1.45;
+}
+
+.rhythm-hitlog .hit-perfect {
+  color: #79ffb1;
+}
+
+.rhythm-hitlog .hit-good {
+  color: #ffd36d;
+}
+
+.rhythm-hitlog .hit-miss {
+  color: #ff8094;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;

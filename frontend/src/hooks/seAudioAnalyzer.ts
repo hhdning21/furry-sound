@@ -36,6 +36,8 @@ export function useAudioAnalyzer(src: string | null) {
 	const [features, setFeatures] = useState<RealtimeFeatures>(INITIAL_FEATURES);
 	const [playbackError, setPlaybackError] = useState<string>('');
 	const [playbackStatus, setPlaybackStatus] = useState<'idle' | 'loading' | 'ready' | 'playing' | 'error'>('idle');
+	const [currentTime, setCurrentTime] = useState(0);
+	const [duration, setDuration] = useState(0);
 
 	useEffect(() => {
 		const audio = new Audio();
@@ -51,6 +53,8 @@ export function useAudioAnalyzer(src: string | null) {
 		const handleEnd = () => setIsPlaying(false);
 		const handleLoadStart = () => setPlaybackStatus('loading');
 		const handleCanPlay = () => setPlaybackStatus('ready');
+		const handleTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
+		const handleDuration = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
 		const handleError = () => {
 			setPlaybackStatus('error');
 			setPlaybackError('Audio failed to play. Try local upload MP3/WAV.');
@@ -61,6 +65,9 @@ export function useAudioAnalyzer(src: string | null) {
 		audio.addEventListener('ended', handleEnd);
 		audio.addEventListener('loadstart', handleLoadStart);
 		audio.addEventListener('canplay', handleCanPlay);
+		audio.addEventListener('timeupdate', handleTimeUpdate);
+		audio.addEventListener('durationchange', handleDuration);
+		audio.addEventListener('loadedmetadata', handleDuration);
 		audio.addEventListener('error', handleError);
 
 		return () => {
@@ -71,6 +78,9 @@ export function useAudioAnalyzer(src: string | null) {
 			audio.removeEventListener('ended', handleEnd);
 			audio.removeEventListener('loadstart', handleLoadStart);
 			audio.removeEventListener('canplay', handleCanPlay);
+			audio.removeEventListener('timeupdate', handleTimeUpdate);
+			audio.removeEventListener('durationchange', handleDuration);
+			audio.removeEventListener('loadedmetadata', handleDuration);
 			audio.removeEventListener('error', handleError);
 
 			sourceRef.current?.disconnect();
@@ -81,6 +91,8 @@ export function useAudioAnalyzer(src: string | null) {
 			analyserRef.current = null;
 			contextRef.current = null;
 			beatEnergyRef.current = 0;
+			setCurrentTime(0);
+			setDuration(0);
 		};
 	}, [src]);
 
@@ -126,6 +138,7 @@ export function useAudioAnalyzer(src: string | null) {
 		const beat = Math.min(1, flux * 5);
 
 		setFeatures({ low, mid, high, volume, beat });
+		setCurrentTime(audioRef.current?.currentTime ?? 0);
 		frameRef.current = requestAnimationFrame(tick);
 	};
 
@@ -167,13 +180,16 @@ export function useAudioAnalyzer(src: string | null) {
 	return useMemo(
 		() => ({
 			isPlaying,
+			currentTime,
+			duration,
 			features,
 			playbackError,
 			playbackStatus,
+			getCurrentTime: () => audioRef.current?.currentTime ?? 0,
 			play,
 			pause,
 			toggle
 		}),
-		[features, isPlaying, playbackError, playbackStatus]
+		[currentTime, duration, features, isPlaying, playbackError, playbackStatus]
 	);
 }

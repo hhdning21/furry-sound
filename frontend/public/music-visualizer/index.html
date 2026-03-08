@@ -9,8 +9,13 @@
   <body>
     <canvas id="stage"></canvas>
 
-    <aside class="panel">
-      <h1>Music Visualization System</h1>
+    <aside class="panel" id="controlPanel">
+      <div class="panel-header">
+        <h1>Music Visualization System</h1>
+        <button id="panelToggleBtn" class="panel-toggle" type="button" aria-expanded="true" title="Collapse panel">
+          ◀
+        </button>
+      </div>
 
       <div class="group">
         <label>Audio File</label>
@@ -38,8 +43,8 @@
           <option value="water">Resonance Water</option>
           <option value="particles">Particle Storm</option>
           <option value="pulseWall">Rhythm Pulse Wall</option>
-          <option value="cosmos">Cosmic Concert Mode</option>
           <option value="accessible">Accessible Rhythm (Recommended for Hearing-Impaired)</option>
+          <option value="interactive">Interactive Rhythm Mode (New)</option>
         </select>
       </div>
 

@@ -1,4 +1,4 @@
-import { AnalysisResult, VisualMode } from '../types';
+import { AnalysisResult, RhythmDifficulty, VisualMode } from '../types';
 
 type Props = {
 	selectedTrackName: string | null;
@@ -6,9 +6,11 @@ type Props = {
 	isAnalyzing: boolean;
 	isPlaying: boolean;
 	visualMode: VisualMode;
+	rhythmDifficulty: RhythmDifficulty;
 	onAnalyze: () => void;
 	onPlayPause: () => void;
 	onVisualModeChange: (mode: VisualMode) => void;
+	onRhythmDifficultyChange: (difficulty: RhythmDifficulty) => void;
 };
 
 export default function PlayerControls({
@@ -17,17 +19,27 @@ export default function PlayerControls({
 	isAnalyzing,
 	isPlaying,
 	visualMode,
+	rhythmDifficulty,
 	onAnalyze,
 	onPlayPause,
-	onVisualModeChange
+	onVisualModeChange,
+	onRhythmDifficultyChange
 }: Props) {
 	return (
 		<>
 			<div className="card">
 				<h1>2) Analyze and play</h1>
 				<div className="small">Selected: {selectedTrackName ?? 'No track selected'}</div>
+				<select
+					value={rhythmDifficulty}
+					onChange={(event) => onRhythmDifficultyChange(event.target.value as RhythmDifficulty)}
+				>
+					<option value="Easy">Beatmap difficulty: Easy</option>
+					<option value="Medium">Beatmap difficulty: Medium</option>
+					<option value="Hard">Beatmap difficulty: Hard</option>
+				</select>
 				<button onClick={onAnalyze} disabled={!selectedTrackName || isAnalyzing}>
-					{isAnalyzing ? 'Analyzing…' : 'Analyze this song'}
+					{isAnalyzing ? 'Analyzing & generating beatmap…' : 'Analyze + Generate beatmap'}
 				</button>
 
 				<button onClick={onPlayPause} disabled={!selectedTrackName}>
