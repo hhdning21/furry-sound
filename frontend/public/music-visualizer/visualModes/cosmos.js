@@ -29,7 +29,7 @@ export class CosmicConcertMode {
     this.ready = true;
   }
 
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     this._init(width, height);
 
     ctx.save();
@@ -73,7 +73,7 @@ export class CosmicConcertMode {
     // ACCESSIBILITY: Beat rings expand from center
     // Clear visual indicator of rhythm timing and beat strength
     if (data.beat) {
-      this.trails.push({ r: 12, life: 1, power: Math.max(0.45, data.bass * sensitivity.beat) });
+      this.trails.push({ r: 12, life: 1, power: Math.max(0.45, data.bass) });
       // PERFORMANCE: Keep trail list bounded to avoid long frame spikes.
       if (this.trails.length > 32) this.trails.shift();
     }

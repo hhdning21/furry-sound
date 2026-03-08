@@ -12,7 +12,7 @@ export class SoundLandscapeMode {
     }));
   }
 
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     this.ensureTerrain(width);
     const horizon = height * 0.62;
 
@@ -26,7 +26,7 @@ export class SoundLandscapeMode {
 
     ctx.beginPath();
     this.terrain.forEach((p, i) => {
-      const raise = data.bass * 180 * sensitivity.motion;
+      const raise = data.bass * 180;
       const y =
         horizon +
         Math.sin(p.noise + t * 0.8 + i * 0.3) * 18 +

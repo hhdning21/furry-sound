@@ -95,9 +95,6 @@ const ui = setupUI({
   modeSelect: document.getElementById('modeSelect'),
   difficultySelect: document.getElementById('difficultySelect'),
   themeSelect: document.getElementById('themeSelect'),
-  ampSensitivity: document.getElementById('ampSensitivity'),
-  beatSensitivity: document.getElementById('beatSensitivity'),
-  motionSensitivity: document.getElementById('motionSensitivity'),
   hapticToggle: document.getElementById('hapticToggle'),
   onFile: async (file) => {
     await engine.loadFile(file);
@@ -204,8 +201,7 @@ function drawColorBandCue(data) {
 function frame(ts) {
   requestAnimationFrame(frame);
 
-  const sensitivity = ui.getSensitivity();
-  const data = engine.update({ beatSensitivity: sensitivity.beat });
+  const data = engine.update();
   if (!data) return;
 
   const t = ts / 1000;
@@ -218,13 +214,13 @@ function frame(ts) {
 
     ctx.save();
     ctx.globalAlpha = 1 - transition;
-    modes[prevMode].render(ctx, data, t, viewportWidth, viewportHeight, theme, sensitivity);
+    modes[prevMode].render(ctx, data, t, viewportWidth, viewportHeight, theme);
     ctx.restore();
   }
 
   ctx.save();
   ctx.globalAlpha = transition;
-  modes[activeMode].render(ctx, data, t, viewportWidth, viewportHeight, theme, sensitivity);
+  modes[activeMode].render(ctx, data, t, viewportWidth, viewportHeight, theme);
   ctx.restore();
 
   updateAccessibility(data);

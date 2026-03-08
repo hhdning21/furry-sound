@@ -14,7 +14,7 @@ export class ResonanceWaterMode {
     this.ripples = [];
   }
 
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     ctx.save();
     ctx.fillStyle = 'rgba(4, 8, 16, 0.28)';
     ctx.fillRect(0, 0, width, height);
@@ -27,12 +27,12 @@ export class ResonanceWaterMode {
         y: height * 0.55,
         r: 8,
         life: 1,
-        power: Math.max(0.5, data.amplitude * sensitivity.amp)
+        power: Math.max(0.5, data.amplitude)
       });
     }
 
     this.ripples.forEach((r) => {
-      r.r += (4 + data.amplitude * 12) * sensitivity.motion;
+      r.r += (4 + data.amplitude * 12);
       r.life -= 0.012;
     });
     this.ripples = this.ripples.filter((r) => r.life > 0);

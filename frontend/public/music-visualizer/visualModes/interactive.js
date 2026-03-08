@@ -43,10 +43,22 @@ export class InteractiveRhythmMode {
     // Visual feedback systems
     this.hitEffects = [];
     this.particles = [];
+    this.bgParticles = [];
     this.judgementTexts = [];
     this.laneFlashes = [0, 0, 0, 0];
     this.screenPulse = 0;
     this.comboAnimation = { value: 0, scale: 1, opacity: 0 };
+    this._bgParticlesInited = false;
+    this._bgW = 0;
+    this._bgH = 0;
+
+    // End screen
+    this.hasEnded = false;
+    this.endScreenOpacity = 0;
+    this.endScreenStartTime = 0;
+
+    // Current theme
+    this.currentTheme = {};
 
     this.difficulty = 'mid';
     this._difficultyConfig = {
@@ -107,6 +119,8 @@ export class InteractiveRhythmMode {
     this._lastRealBeatTime = -999;
     this._lastSpawnTime = -999;
     this.notes = [];
+    this.hasEnded = false;
+    this.endScreenOpacity = 0;
   }
 
   _countdownActive(t) {
@@ -227,14 +241,20 @@ export class InteractiveRhythmMode {
     }
   }
 
-  _createHitExplosion(x, y, judgement, isAccent) {
+  _createHitExplosion(x, y, judgement, isAccent, theme = {}) {
     const particleCount = judgement === 'perfect' ? 20 : judgement === 'good' ? 12 : 6;
-    const colors = {
-      perfect: ['#FFD700', '#FFA500', '#FF69B4'],
-      good: ['#00BFFF', '#87CEEB', '#4169E1'],
+    
+    // Support both ice and sunset themes
+    const themeColors = {
+      perfect: theme.accent ? 
+        [theme.accent, theme.primary, '#FFD700'] : 
+        ['#FFD700', '#FFA500', '#FF69B4'],
+      good: theme.secondary ? 
+        [theme.secondary, theme.primary, '#87CEEB'] : 
+        ['#00BFFF', '#87CEEB', '#4169E1'],
       miss: ['#888888', '#555555', '#333333']
     };
-    const palette = colors[judgement] || colors.miss;
+    const palette = themeColors[judgement] || themeColors.miss;
 
     // Create burst particles
     for (let i = 0; i < particleCount; i++) {
@@ -299,6 +319,84 @@ export class InteractiveRhythmMode {
     }
   }
 
+  _initBgParticles(width, height) {
+    const targetCount = Math.min(1700, Math.max(700, Math.floor((width * height) / 1000)));
+    if (this._bgParticlesInited && this._bgW === width && this._bgH === height && this.bgParticles.length === targetCount) {
+      return;
+    }
+
+    this.bgParticles = Array.from({ length: targetCount }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.55,
+      vy: (Math.random() - 0.5) * 0.55,
+      size: Math.random() * 1.6 + 0.35
+    }));
+
+    this._bgParticlesInited = true;
+    this._bgW = width;
+    this._bgH = height;
+  }
+
+  _renderParticleStormBackground(ctx, data, width, height, theme) {
+    this._initBgParticles(width, height);
+
+    // Beat burst from center (Particle Storm behavior)
+    if (data.beat) {
+      const cx = width * 0.5;
+      const cy = height * 0.5;
+      for (let i = 0; i < this.bgParticles.length; i++) {
+        const p = this.bgParticles[i];
+        if (i % 6 !== 0) continue;
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        const d = Math.hypot(dx, dy) || 1;
+        const boost = data.bass * 2.4;
+        p.vx += (dx / d) * boost;
+        p.vy += (dy / d) * boost;
+      }
+    }
+
+    const rot = data.mid * 0.038 + 0.003;
+    const sin = Math.sin(rot);
+    const cos = Math.cos(rot);
+
+    const flash = data.treble * 0.9;
+    const alpha = 0.06 + flash * 0.32;
+    const extraSize = flash * 1.2;
+    const particleColor = theme?.primary || '#b2e4ff';
+
+    ctx.save();
+    ctx.fillStyle = `rgba(5, 8, 16, ${0.16 + data.amplitude * 0.06})`;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = particleColor;
+    ctx.globalAlpha = alpha;
+
+    for (let i = 0; i < this.bgParticles.length; i++) {
+      const p = this.bgParticles[i];
+
+      const vx = p.vx * cos - p.vy * sin;
+      const vy = p.vx * sin + p.vy * cos;
+      p.vx = vx * 0.992;
+      p.vy = vy * 0.992;
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x += width;
+      if (p.x > width) p.x -= width;
+      if (p.y < 0) p.y += height;
+      if (p.y > height) p.y -= height;
+
+      const s = p.size + extraSize;
+      ctx.fillRect(p.x, p.y, s, s);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   _tryHitLane(lane, isKeyDown = false) {
     const hitY = this._view.hitY;
     const laneWidth = this._view.laneWidth;
@@ -351,7 +449,7 @@ export class InteractiveRhythmMode {
       target.judged = true;
       
       // Visual feedback
-      this._createHitExplosion(hitX, hitY, 'perfect', isAccent);
+      this._createHitExplosion(hitX, hitY, 'perfect', isAccent, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'perfect');
       this._triggerLaneFlash(lane, 'perfect', isAccent);
       this._triggerScreenPulse();
@@ -368,7 +466,7 @@ export class InteractiveRhythmMode {
       target.judged = true;
       
       // Visual feedback
-      this._createHitExplosion(hitX, hitY, 'good', isAccent);
+      this._createHitExplosion(hitX, hitY, 'good', isAccent, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'good');
       this._triggerLaneFlash(lane, 'good', isAccent);
       this._updateComboAnimation();
@@ -382,7 +480,7 @@ export class InteractiveRhythmMode {
       target.judged = true;
       
       // Visual feedback
-      this._createHitExplosion(hitX, hitY, 'miss', false);
+      this._createHitExplosion(hitX, hitY, 'miss', false, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'miss');
       this._triggerLaneFlash(lane, 'miss', false);
       this.comboAnimation.opacity = 0;
@@ -417,7 +515,7 @@ export class InteractiveRhythmMode {
       this.lastJudge = 'Perfect Hold';
       note.judged = true;
       note.holdJudged = true;
-      this._createHitExplosion(hitX, hitY, 'perfect', true);
+      this._createHitExplosion(hitX, hitY, 'perfect', true, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'perfect');
       this._triggerLaneFlash(lane, 'perfect', true);
       this._triggerScreenPulse();
@@ -431,7 +529,7 @@ export class InteractiveRhythmMode {
       this.lastJudge = 'Good Hold';
       note.judged = true;
       note.holdJudged = true;
-      this._createHitExplosion(hitX, hitY, 'good', false);
+      this._createHitExplosion(hitX, hitY, 'good', false, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'good');
       this._triggerLaneFlash(lane, 'good', false);
       this._updateComboAnimation();
@@ -442,7 +540,7 @@ export class InteractiveRhythmMode {
       this.lastJudge = 'Miss (Early Release)';
       note.judged = true;
       note.holdJudged = true;
-      this._createHitExplosion(hitX, hitY, 'miss', false);
+      this._createHitExplosion(hitX, hitY, 'miss', false, this.currentTheme);
       this._createJudgementText(hitX, hitY, 'miss');
       this._triggerLaneFlash(lane, 'miss', false);
       this.comboAnimation.opacity = 0;
@@ -456,6 +554,9 @@ export class InteractiveRhythmMode {
     this._view.height = height;
     this._view.laneWidth = width / this.laneCount;
     this._view.hitY = height * 0.86;
+
+    // Store current theme for use in other methods
+    this.currentTheme = theme || {};
 
     // Track audio playing state
     if (this.audioElement) {
@@ -484,8 +585,7 @@ export class InteractiveRhythmMode {
     }
 
     ctx.save();
-    ctx.fillStyle = 'rgba(5, 7, 16, 0.28)';
-    ctx.fillRect(0, 0, width, height);
+    this._renderParticleStormBackground(ctx, data, width, height, theme);
 
     // Lanes with flash effect
     for (let i = 0; i < this.laneCount; i++) {
@@ -552,7 +652,7 @@ export class InteractiveRhythmMode {
             note.judged = true;
             note.holdJudged = true;
             const hitX = note.lane * laneWidth + laneWidth * 0.5;
-            this._createHitExplosion(hitX, hitY, 'perfect', true);
+            this._createHitExplosion(hitX, hitY, 'perfect', true, this.currentTheme);
             this._createJudgementText(hitX, hitY, 'perfect');
             this._triggerLaneFlash(note.lane, 'perfect', true);
             this._triggerScreenPulse();
@@ -562,33 +662,70 @@ export class InteractiveRhythmMode {
           }
         }
 
-        // Draw hold note with trail (meteor effect)
+        // Draw hold note with coordinated elliptical trail
+        const holdHeadLongAxis = laneWidth * 0.5;
+        const holdHeadShortAxis = 14;
         const trailLength = Math.min(holdPixels, note.y - note.tailY);
-        const gradient = ctx.createLinearGradient(note.x, note.tailY, note.x, note.y);
-        gradient.addColorStop(0, 'rgba(255, 200, 100, 0)');
-        gradient.addColorStop(0.3, isBeingHeld ? 'rgba(100, 255, 150, 0.4)' : 'rgba(255, 200, 100, 0.4)');
-        gradient.addColorStop(1, isBeingHeld ? 'rgba(100, 255, 150, 0.95)' : 'rgba(255, 180, 80, 0.95)');
+        const trailWidth = Math.max(12, holdHeadLongAxis * 0.52);
+        const trailRadius = trailWidth * 0.5;
+        const holdHeadWidth = trailWidth;
+        const glowGradient = ctx.createLinearGradient(note.x, note.tailY, note.x, note.y);
+        glowGradient.addColorStop(0, 'rgba(80, 220, 255, 0)');
+        glowGradient.addColorStop(0.3, isBeingHeld ? 'rgba(80, 255, 170, 0.22)' : 'rgba(255, 170, 90, 0.2)');
+        glowGradient.addColorStop(0.72, isBeingHeld ? 'rgba(110, 255, 200, 0.62)' : 'rgba(255, 170, 120, 0.58)');
+        glowGradient.addColorStop(1, isBeingHeld ? 'rgba(140, 255, 220, 0.9)' : 'rgba(255, 190, 110, 0.88)');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.roundRect(note.x - trailWidth / 2, note.tailY, trailWidth, trailLength, trailRadius);
+        ctx.fill();
 
-        ctx.fillStyle = gradient;
-        const trailWidth = 18;
-        ctx.fillRect(note.x - trailWidth / 2, note.tailY, trailWidth, trailLength);
+        // Soft cap at trail start for smoother connection
+        ctx.beginPath();
+        ctx.fillStyle = isBeingHeld ? 'rgba(130, 255, 210, 0.22)' : 'rgba(255, 195, 120, 0.2)';
+        ctx.ellipse(note.x, note.tailY + trailRadius * 0.5, trailWidth * 0.36, trailRadius * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Draw hold note head (different color when being held)
+        // Trail core line for a sharper sci-fi look
+        const coreWidth = Math.max(2, trailWidth * 0.18);
+        const coreGradient = ctx.createLinearGradient(note.x, note.tailY, note.x, note.y);
+        coreGradient.addColorStop(0, 'rgba(255,255,255,0)');
+        coreGradient.addColorStop(0.45, isBeingHeld ? 'rgba(235, 255, 245, 0.55)' : 'rgba(255, 248, 228, 0.52)');
+        coreGradient.addColorStop(1, isBeingHeld ? 'rgba(255,255,255,0.9)' : 'rgba(255, 250, 236, 0.86)');
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.roundRect(note.x - coreWidth / 2, note.tailY, coreWidth, trailLength, coreWidth * 0.5);
+        ctx.fill();
+
+        // Draw hold note head as ellipse
         ctx.beginPath();
         ctx.fillStyle = isBeingHeld ? 'rgba(100, 255, 150, 0.98)' : 'rgba(255, 180, 80, 0.98)';
-        ctx.arc(note.x, note.y, 13, 0, Math.PI * 2);
+        ctx.ellipse(note.x, note.y, holdHeadWidth * 0.5, holdHeadShortAxis * 0.5, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = isBeingHeld ? 'rgba(200, 255, 220, 0.95)' : 'rgba(255, 220, 150, 0.95)';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = isBeingHeld ? 'rgba(200, 255, 220, 0.98)' : 'rgba(255, 220, 150, 0.98)';
+        ctx.lineWidth = 3.2;
         ctx.stroke();
+
+        // Head glow
+        ctx.beginPath();
+        ctx.fillStyle = isBeingHeld ? 'rgba(90, 255, 180, 0.24)' : 'rgba(255, 170, 90, 0.22)';
+        ctx.ellipse(note.x, note.y, holdHeadWidth * 0.62, holdHeadShortAxis * 0.95, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         // Draw pulsing ring on hold head
         if (isBeingHeld) {
-          const pulseSize = 16 + Math.sin(nowSec * 8) * 3;
+          const pulseSize = 17 + Math.sin(nowSec * 8) * 3;
           ctx.beginPath();
-          ctx.strokeStyle = 'rgba(100, 255, 150, 0.6)';
+          ctx.strokeStyle = 'rgba(120, 255, 180, 0.72)';
           ctx.lineWidth = 2;
-          ctx.arc(note.x, note.y, pulseSize, 0, Math.PI * 2);
+          ctx.ellipse(
+            note.x,
+            note.y,
+            holdHeadWidth * 0.5 + pulseSize * 0.15,
+            holdHeadShortAxis * 0.5 + pulseSize * 0.15,
+            0,
+            0,
+            Math.PI * 2
+          );
           ctx.stroke();
         }
       } else {
@@ -602,6 +739,7 @@ export class InteractiveRhythmMode {
         }
 
         // Draw meteor trail for regular notes
+        const unifiedNoteWidth = Math.max(12, (laneWidth * 0.5) * 0.52);
         const trailLength = 40;
         const gradient = ctx.createLinearGradient(note.x, note.y - trailLength, note.x, note.y);
         const baseColor = note.type === 'accent' ? 'rgba(255, 130, 90, ' : 'rgba(124, 188, 255, ';
@@ -610,20 +748,69 @@ export class InteractiveRhythmMode {
         gradient.addColorStop(1, baseColor + '0.95)');
 
         ctx.fillStyle = gradient;
-        const trailWidth = note.type === 'accent' ? 10 : 8;
+        const trailWidth = unifiedNoteWidth;
         ctx.fillRect(note.x - trailWidth / 2, note.y - trailLength, trailWidth, trailLength);
 
-        // Draw note head
-        ctx.beginPath();
-        ctx.fillStyle = note.type === 'accent' ? 'rgba(255,130,90,0.96)' : 'rgba(124,188,255,0.95)';
-        ctx.arc(note.x, note.y, note.type === 'accent' ? 14 : 11, 0, Math.PI * 2);
-        ctx.fill();
+        // Draw horizontal bar note with enhanced trail
+        const barHeight = note.type === 'accent' ? 20 : 16;
+        const barWidth = unifiedNoteWidth;
+        const barX = note.x - barWidth / 2;
+        const barY = note.y - barHeight / 2;
 
+        // Enhanced trail effect - multi-layer glow
+        const trailGradient = ctx.createLinearGradient(note.x, note.y - 60, note.x, note.y);
         if (note.type === 'accent') {
-          ctx.strokeStyle = 'rgba(255, 225, 190, 0.9)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          trailGradient.addColorStop(0, 'rgba(255, 130, 90, 0)');
+          trailGradient.addColorStop(0.3, 'rgba(255, 200, 100, 0.15)');
+          trailGradient.addColorStop(0.7, 'rgba(255, 160, 80, 0.35)');
+          trailGradient.addColorStop(1, 'rgba(255, 130, 90, 0)');
+        } else {
+          trailGradient.addColorStop(0, 'rgba(124, 188, 255, 0)');
+          trailGradient.addColorStop(0.3, 'rgba(150, 200, 255, 0.15)');
+          trailGradient.addColorStop(0.7, 'rgba(124, 188, 255, 0.35)');
+          trailGradient.addColorStop(1, 'rgba(124, 188, 255, 0)');
         }
+        ctx.fillStyle = trailGradient;
+        ctx.fillRect(barX, note.y - 68, barWidth, 68);
+
+        // Extra neon streak for cooler style
+        const neonGradient = ctx.createLinearGradient(note.x, note.y - 52, note.x, note.y);
+        neonGradient.addColorStop(0, 'rgba(255,255,255,0)');
+        neonGradient.addColorStop(0.7, note.type === 'accent' ? 'rgba(255, 210, 140, 0.35)' : 'rgba(190, 230, 255, 0.35)');
+        neonGradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = neonGradient;
+        ctx.fillRect(note.x - 3, note.y - 52, 6, 52);
+
+        // Draw outer glow layer
+        ctx.fillStyle = note.type === 'accent' ? 'rgba(255, 180, 80, 0.26)' : 'rgba(124, 188, 255, 0.26)';
+        ctx.fillRect(barX - 4, barY - 4, barWidth + 8, barHeight + 8);
+
+        // Draw main bar with gradient
+        const barGradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
+        if (note.type === 'accent') {
+          barGradient.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
+          barGradient.addColorStop(0.5, 'rgba(255, 130, 90, 0.96)');
+          barGradient.addColorStop(1, 'rgba(255, 180, 80, 0.8)');
+        } else {
+          barGradient.addColorStop(0, 'rgba(100, 180, 255, 0.8)');
+          barGradient.addColorStop(0.5, 'rgba(124, 188, 255, 0.95)');
+          barGradient.addColorStop(1, 'rgba(100, 180, 255, 0.8)');
+        }
+        ctx.fillStyle = barGradient;
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Draw bright edge highlight
+        ctx.fillStyle = note.type === 'accent' ? 'rgba(255, 220, 150, 0.7)' : 'rgba(200, 220, 255, 0.7)';
+        ctx.fillRect(barX, barY, barWidth, 2);
+
+        // Draw bottom shadow
+        ctx.fillStyle = note.type === 'accent' ? 'rgba(200, 100, 50, 0.5)' : 'rgba(80, 120, 200, 0.5)';
+        ctx.fillRect(barX, barY + barHeight - 2, barWidth, 2);
+
+        // Draw border
+        ctx.strokeStyle = note.type === 'accent' ? 'rgba(255, 200, 150, 0.9)' : 'rgba(150, 200, 255, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
       }
     }
 
@@ -757,6 +944,50 @@ export class InteractiveRhythmMode {
       ctx.font = '600 20px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Get Ready', width * 0.5, height * 0.62);
+    }
+
+    // Check if audio has ended and display end screen
+    if (this.audioElement && this.audioElement.ended && !this.hasEnded) {
+      this.hasEnded = true;
+      this.endScreenStartTime = nowSec;
+    }
+
+    if (this.hasEnded) {
+      const timeSinceEnd = nowSec - this.endScreenStartTime;
+      // Fade in over 0.8 seconds, stay at 1.0
+      this.endScreenOpacity = Math.min(1, timeSinceEnd / 0.8);
+
+      // Draw dark overlay
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.6 * this.endScreenOpacity})`;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw "THE END" text with fade and scale effect
+      const textScale = 0.8 + Math.sin(timeSinceEnd * 1.5) * 0.1;
+      const textY = height * 0.45;
+
+      ctx.save();
+      ctx.translate(width * 0.5, textY);
+      ctx.scale(this.endScreenOpacity * textScale, this.endScreenOpacity * textScale);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '800 90px Inter, system-ui, sans-serif';
+      ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 * this.endScreenOpacity})`;
+      ctx.lineWidth = 6;
+      ctx.strokeText('THE END', 0, 0);
+      ctx.fillStyle = `rgba(255, 241, 168, ${this.endScreenOpacity})`;
+      ctx.fillText('THE END', 0, 0);
+      ctx.restore();
+
+      // Draw final stats after a delay
+      if (timeSinceEnd > 1.2) {
+        const statsAlpha = Math.min(1, (timeSinceEnd - 1.2) / 0.6);
+        ctx.fillStyle = `rgba(212, 225, 255, ${statsAlpha * 0.95})`;
+        ctx.font = '600 24px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Final Score: ${this.score}`, width * 0.5, height * 0.62);
+        ctx.font = '500 18px Inter, system-ui, sans-serif';
+        ctx.fillText(`Best Combo: ${this.bestCombo}  |  Perfect: ${this.perfect}  Good: ${this.good}  Miss: ${this.miss}`, width * 0.5, height * 0.7);
+      }
     }
 
     // Restore screen pulse transform

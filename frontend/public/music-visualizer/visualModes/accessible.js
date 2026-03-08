@@ -233,7 +233,7 @@ export class AccessibleRhythmMode {
     this.bassWaves.length = writeIndex;
   }
 
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     const cx = width / 2;
     const cy = height / 2;
     

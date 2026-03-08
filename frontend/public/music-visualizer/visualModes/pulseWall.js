@@ -11,7 +11,7 @@
  */
 
 export class RhythmPulseWallMode {
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     const bars = 72;
     const gap = 4;
     const barW = width / bars;
@@ -37,7 +37,7 @@ export class RhythmPulseWallMode {
 
       // ACCESSIBILITY: Beat causes visible upward pulse
       // Makes rhythm visible for hearing-impaired users
-      const pulse = data.beat ? data.beatIntensity * sensitivity.beat * 0.85 : 0;
+      const pulse = data.beat ? data.beatIntensity * 0.85 : 0;
       const h = Math.max(10, (spec * 0.95 + data.amplitude * 0.42) * height * 0.9);
       const y = height - h;
       const push = pulse * 22;

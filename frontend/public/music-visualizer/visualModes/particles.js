@@ -35,7 +35,7 @@ export class ParticleStormMode {
     this.lastHeight = height;
   }
 
-  render(ctx, data, t, width, height, theme, sensitivity) {
+  render(ctx, data, t, width, height, theme) {
     this._init(width, height);
 
     // ACCESSIBILITY: Beat detection causes visible particle explosion
@@ -49,13 +49,13 @@ export class ParticleStormMode {
         const dx = p.x - cx;
         const dy = p.y - cy;
         const d = Math.hypot(dx, dy) || 1;
-        const boost = data.bass * 2.5 * sensitivity.beat;
+        const boost = data.bass * 2.5;
         p.vx += (dx / d) * boost;
         p.vy += (dy / d) * boost;
       }
     }
 
-    const rot = (data.mid * 0.04 + 0.003) * sensitivity.motion;
+    const rot = (data.mid * 0.04 + 0.003);
     const sin = Math.sin(rot);
     const cos = Math.cos(rot);
 

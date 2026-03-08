@@ -15,9 +15,6 @@ export function setupUI({
   modeSelect,
   difficultySelect,
   themeSelect,
-  ampSensitivity,
-  beatSensitivity,
-  motionSensitivity,
   hapticToggle,
   onFile,
   onPlay,
@@ -45,11 +42,6 @@ export function setupUI({
   return {
     getMode: () => modeSelect.value,
     getTheme: () => THEMES[themeSelect.value] || THEMES.sunset,
-    getSensitivity: () => ({
-      amp: Number(ampSensitivity.value),
-      beat: Number(beatSensitivity.value),
-      motion: Number(motionSensitivity.value)
-    }),
     hapticEnabled: () => hapticToggle.checked,
     themes: THEMES
   };
