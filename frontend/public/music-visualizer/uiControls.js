@@ -14,6 +14,7 @@ export function setupUI({
   difficultySelect,
   themeSelect,
   hapticToggle,
+  hapticGroup,
   onFile,
   onPlay,
   onPause,
@@ -38,7 +39,25 @@ export function setupUI({
   return {
     getMode: () => modeSelect.value,
     getTheme: () => THEMES[themeSelect.value] || THEMES.sunset,
-    hapticEnabled: () => hapticToggle.checked,
+    hapticEnabled: () => Boolean(hapticToggle?.checked),
+    setHapticEnabled: (enabled) => {
+      if (!hapticToggle) return;
+      hapticToggle.checked = Boolean(enabled);
+    },
+    setHapticSupport: (isSupported, reason = '') => {
+      if (!hapticToggle) return;
+
+      if (!isSupported) {
+        hapticToggle.checked = false;
+      }
+
+      hapticToggle.disabled = !isSupported;
+      hapticToggle.title = !isSupported ? (reason || 'Haptic feedback is not supported on this device/browser.') : '';
+
+      if (hapticGroup) {
+        hapticGroup.style.opacity = isSupported ? '1' : '0.6';
+      }
+    },
     themes: THEMES
   };
 }

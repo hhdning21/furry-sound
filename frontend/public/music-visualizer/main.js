@@ -44,6 +44,12 @@ let beatPulse = 0;
 let markerHead = 0;
 let viewportWidth = window.innerWidth;
 let viewportHeight = window.innerHeight;
+const supportsHaptics = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+const prefersReducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+const hapticState = {
+  lastTriggerTs: 0,
+  minIntervalMs: 90
+};
 
 // Rendering fix: keep canvas bitmap resolution in sync with screen size and DPI.
 // This prevents blurry upscaling and keeps drawing in full-screen CSS pixels.
@@ -92,6 +98,7 @@ const ui = setupUI({
   difficultySelect: document.getElementById('difficultySelect'),
   themeSelect: document.getElementById('themeSelect'),
   hapticToggle: document.getElementById('hapticToggle'),
+  hapticGroup: document.getElementById('hapticGroup'),
   onFile: async (file) => {
     await engine.loadFile(file);
   },
@@ -103,6 +110,9 @@ const ui = setupUI({
   },
   onPause: () => {
     engine.pause();
+    if (supportsHaptics) {
+      navigator.vibrate(0);
+    }
   },
   onMic: async () => {
     if (engine.isMicrophoneActive()) {
@@ -114,6 +124,35 @@ const ui = setupUI({
     }
   },
   onModeChange: (nextMode) => {
+
+ui.setHapticSupport(supportsHaptics, 'Haptic feedback is unavailable on this device/browser.');
+if (prefersReducedMotion) {
+  ui.setHapticEnabled(false);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && supportsHaptics) {
+    navigator.vibrate(0);
+  }
+});
+
+function triggerHapticCue(data) {
+  if (!supportsHaptics || !ui.hapticEnabled()) return;
+
+  const now = performance.now();
+  if (now - hapticState.lastTriggerTs < hapticState.minIntervalMs) return;
+  hapticState.lastTriggerTs = now;
+
+  // Short patterns keep cues clear without becoming intrusive.
+  if (data.kickDetected) {
+    navigator.vibrate([18, 16, 18]);
+  } else if (data.snareDetected) {
+    navigator.vibrate(14);
+  } else {
+    navigator.vibrate(10);
+  }
+}
+
     if (nextMode === activeMode) return;
     prevMode = activeMode;
     activeMode = nextMode;
@@ -162,11 +201,7 @@ function updateAccessibility(data) {
       node.style.transform = isHead ? 'scaleY(1.7)' : 'scaleY(1)';
     });
 
-    if (ui.hapticEnabled() && navigator.vibrate) {
-      // Vary haptic intensity by beat type for accessibility
-      const vibrateDuration = data.kickDetected ? 25 : data.snareDetected ? 15 : 12;
-      navigator.vibrate(vibrateDuration);
-    }
+    triggerHapticCue(data);
   }
 
   beatPulse *= 0.9;

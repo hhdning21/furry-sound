@@ -92,11 +92,13 @@ All visualization modes include accessibility-friendly features:
 - **Color-coded beats**: Kick drums = red, snare = blue, general beats = cyan
 
 ### 2. Haptic Feedback (Optional)
-- Enable "Haptic Cues" for vibration on beats (mobile devices)
-- Different vibration intensities for different beat types:
-  - Kick drum: Longer vibration (25ms)
-  - Snare: Medium vibration (15ms)
-  - General beat: Short vibration (12ms)
+- Enable "Haptic Cues (Mobile)" for vibration on beats (supported devices)
+- The toggle is automatically disabled on unsupported browsers/devices
+- Cues are rate-limited to reduce fatigue and prevent vibration spam
+- Different patterns for beat types:
+  - Kick drum: Double pulse pattern (18ms + pause + 18ms)
+  - Snare: Medium single pulse (14ms)
+  - General beat: Short single pulse (10ms)
 
 ### 3. Text Status Panel
 - **Section**: Current song part (Intro, Verse, Build, Chorus, Drop)
