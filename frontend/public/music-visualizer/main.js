@@ -88,8 +88,6 @@ const ui = setupUI({
   playBtn: document.getElementById('playBtn'),
   pauseBtn: document.getElementById('pauseBtn'),
   micBtn: document.getElementById('micBtn'),
-  streamBtn: document.getElementById('streamBtn'),
-  streamUrl: document.getElementById('streamUrl'),
   modeSelect: document.getElementById('modeSelect'),
   difficultySelect: document.getElementById('difficultySelect'),
   themeSelect: document.getElementById('themeSelect'),
@@ -114,9 +112,6 @@ const ui = setupUI({
       await engine.useMicrophone();
       micBtn.textContent = 'Mic: On';
     }
-  },
-  onStream: async (url) => {
-    await engine.useStream(url);
   },
   onModeChange: (nextMode) => {
     if (nextMode === activeMode) return;

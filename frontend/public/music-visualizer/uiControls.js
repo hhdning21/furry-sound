@@ -10,8 +10,6 @@ export function setupUI({
   playBtn,
   pauseBtn,
   micBtn,
-  streamBtn,
-  streamUrl,
   modeSelect,
   difficultySelect,
   themeSelect,
@@ -20,7 +18,6 @@ export function setupUI({
   onPlay,
   onPause,
   onMic,
-  onStream,
   onModeChange,
   onDifficultyChange
 }) {
@@ -32,7 +29,6 @@ export function setupUI({
   playBtn.addEventListener('click', () => onPlay());
   pauseBtn.addEventListener('click', () => onPause());
   micBtn.addEventListener('click', () => onMic());
-  streamBtn.addEventListener('click', () => onStream(streamUrl.value.trim()));
 
   modeSelect.addEventListener('change', () => onModeChange(modeSelect.value));
   if (difficultySelect && onDifficultyChange) {
