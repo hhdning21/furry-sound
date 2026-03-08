@@ -1,6 +1,5 @@
 import { AudioEngine } from './audioEngine.js';
 import { ResonanceWaterMode } from './visualModes/water.js';
-import { ParticleStormMode } from './visualModes/particles.js';
 import { RhythmPulseWallMode } from './visualModes/pulseWall.js';
 import { AccessibleRhythmMode } from './visualModes/accessible.js';
 import { InteractiveRhythmMode } from './visualModes/interactive.js';
@@ -28,7 +27,6 @@ await engine.initWithMediaElement(audioPlayer);
 // ACCESSIBILITY: Visualization modes including hearing-impaired friendly mode
 const modes = {
   water: new ResonanceWaterMode(),
-  particles: new ParticleStormMode(),
   pulseWall: new RhythmPulseWallMode(),
   accessible: new AccessibleRhythmMode(),  // Designed for hearing-impaired users
   interactive: new InteractiveRhythmMode()
