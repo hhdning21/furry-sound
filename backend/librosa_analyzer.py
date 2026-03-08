@@ -129,6 +129,7 @@ def analyze(audio_path: Path):
             "highEnergy": float(round(high_norm, 4)),
             "dominantNote": dominant_note,
             "beatTimes": [float(round(x, 3)) for x in beat_times[:32]],
+            "beatFrames": beat_frames.tolist() if hasattr(beat_frames, 'tolist') else list(beat_frames),
         },
     }
 

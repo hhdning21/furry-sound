@@ -170,7 +170,108 @@ Rules:
   }
 }
 
+async function generateBeatmap({ audioFeatures = {}, difficulty = 'medium' }) {
+  const fallback = {
+    difficulty,
+    beats: (audioFeatures.beatTimes || []).map((timestamp, idx) => ({
+      timestamp,
+      type: idx % 4 === 0 ? 'accent' : 'normal',
+      expectedIntensity: 0.5
+    })),
+    explanation: 'Fallback beatmap generated from beat times.'
+  };
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return fallback;
+  }
+
+  const prompt = `You are a rhythm game beatmap generator. Based on audio analysis data, create a difficulty-graded beatmap.
+
+Input data:
+- Tempo: ${audioFeatures.tempo || 120} BPM
+- Beat frames: ${JSON.stringify((audioFeatures.beatFrames || []).slice(0, 50))}
+- Beat times (seconds): ${JSON.stringify((audioFeatures.beatTimes || []).slice(0, 50))}
+- Energy levels: low=${audioFeatures.lowEnergy || 0.5}, mid=${audioFeatures.midEnergy || 0.5}, high=${audioFeatures.highEnergy || 0.5}
+- Sections: ${JSON.stringify(audioFeatures.sections || [])}
+- Difficulty: ${difficulty}
+
+Generate a beatmap JSON with this schema:
+{
+  "difficulty": "easy" | "medium" | "hard",
+  "beats": [
+    {
+      "timestamp": number (seconds),
+      "type": "normal" | "accent",
+      "expectedIntensity": number (0.0-1.0)
+    }
+  ],
+  "explanation": string
+}
+
+Rules:
+- For "easy": place beats on strong downbeats only (every 2-4 beats), expectedIntensity 0.3-0.6
+- For "medium": place beats on most detected beats, accent every 4th beat, expectedIntensity 0.4-0.7
+- For "hard": place beats on all detected beats plus syncopation, accent on high-energy moments, expectedIntensity 0.5-0.9
+- Use energy levels and sections to vary expectedIntensity throughout the song
+- Mark beats as "accent" during high-energy sections or on downbeats
+- Ensure timestamps are sorted chronologically
+- Limit to 100 beats maximum
+- Return ONLY valid JSON, no markdown`;
+
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 2048
+    }
+  };
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    );
+
+    if (!response.ok) {
+      const reason = await response.text();
+      throw new Error(`Gemini API failed: ${reason}`);
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text).join('\n') || '';
+    const raw = extractJsonObject(text);
+
+    // Validate and normalize beatmap
+    const normalizedBeats = Array.isArray(raw.beats)
+      ? raw.beats
+          .filter(b => typeof b.timestamp === 'number' && b.timestamp >= 0)
+          .map(b => ({
+            timestamp: Number(b.timestamp.toFixed(3)),
+            type: ['normal', 'accent'].includes(b.type) ? b.type : 'normal',
+            expectedIntensity: Math.max(0, Math.min(1, Number(b.expectedIntensity) || 0.5))
+          }))
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .slice(0, 100)
+      : fallback.beats;
+
+    return {
+      difficulty: ['easy', 'medium', 'hard'].includes(raw.difficulty) ? raw.difficulty : difficulty,
+      beats: normalizedBeats,
+      explanation: typeof raw.explanation === 'string' ? raw.explanation : fallback.explanation
+    };
+  } catch (error) {
+    console.error('Gemini beatmap generation failed, using fallback.', error);
+    return fallback;
+  }
+}
+
 module.exports = {
   mapFeaturesWithGemini,
-  fallbackVisualFromFeatures
+  fallbackVisualFromFeatures,
+  generateBeatmap
 };

@@ -7,7 +7,7 @@ const path = require('path');
 const { Readable } = require('stream');
 const { spawn } = require('child_process');
 const { mkdtemp, rm, writeFile } = require('fs/promises');
-const { mapFeaturesWithGemini, fallbackVisualFromFeatures } = require('./geminiClient');
+const { mapFeaturesWithGemini, fallbackVisualFromFeatures, generateBeatmap } = require('./geminiClient');
 
 const app = express();
 const upload = multer({
@@ -183,6 +183,46 @@ app.post('/analyze-url', async (req, res) => {
   } catch (error) {
     console.error('Analyze-url endpoint error:', error);
     return res.status(500).json({ error: 'Failed to analyze audio URL.' });
+  }
+});
+
+app.post('/generate-beatmap', upload.single('audio'), async (req, res) => {
+  try {
+    const difficulty = req.body?.difficulty || 'medium';
+    if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+      return res.status(400).json({ error: 'Invalid difficulty. Must be "easy", "medium", or "hard".' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded. Please use form-data key "audio".' });
+    }
+
+    // Run librosa analyzer to extract beat frames, tempo, sections, and energy
+    const librosaResult = await runLibrosaAnalyzer(req.file.buffer, req.file.originalname);
+
+    if (!librosaResult?.audioFeatures) {
+      return res.status(500).json({ error: 'Analyzer did not return valid audio features.' });
+    }
+
+    // Merge sections from analysis into audioFeatures for beatmap generation
+    const enrichedFeatures = {
+      ...librosaResult.audioFeatures,
+      sections: librosaResult.analysis?.sections || []
+    };
+
+    // Generate beatmap using Gemini AI
+    const beatmap = await generateBeatmap({
+      audioFeatures: enrichedFeatures,
+      difficulty
+    });
+
+    return res.json({
+      beatmap,
+      audioFeatures: librosaResult.audioFeatures
+    });
+  } catch (error) {
+    console.error('Generate-beatmap endpoint error:', error);
+    return res.status(500).json({ error: 'Failed to generate beatmap.' });
   }
 });
 
