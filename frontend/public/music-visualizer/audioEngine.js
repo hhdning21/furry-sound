@@ -1,3 +1,22 @@
+/**
+ * AUDIO ENGINE - Core Audio Analysis System
+ * 
+ * ACCESSIBILITY FOR HEARING-IMPAIRED USERS:
+ * This engine analyzes music and extracts visual features that help hearing-impaired
+ * users understand music structure without hearing it:
+ * 
+ * 1. Beat Detection: Identifies rhythm timing → visual pulses/flashes
+ * 2. Frequency Bands: Separates bass/mid/treble → different colors/shapes
+ * 3. Kick Detection: Low-frequency beats → large circle pulses (center)
+ * 4. Snare Detection: Mid-frequency hits → triangle flashes (sides)
+ * 5. Hi-hat Detection: High-frequency patterns → small particles
+ * 6. Energy Levels: Overall volume → size/brightness of visuals
+ * 7. Section Detection: Song structure (verse/chorus/drop) → labeled indicators
+ * 
+ * The visual mapping creates a "rhythm language" that makes music accessible
+ * through sight instead of sound.
+ */
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -121,6 +140,11 @@ export class AudioEngine {
     if (this.audioEl) this.audioEl.pause();
   }
 
+  // ACCESSIBILITY: Analyze frequency bands to separate bass, mid, and treble
+  // This allows different visual representations for different sound frequencies
+  // Bass (20-220Hz) = Low drums/kick → Red colors, large shapes
+  // Mid (220-2000Hz) = Vocals/snare → Blue colors, medium shapes
+  // Treble (2000-9000Hz) = Cymbals/hi-hat → Purple colors, small particles
   _avgBand(fromHz, toHz) {
     const nyquist = this.ctx.sampleRate / 2;
     const start = Math.floor((fromHz / nyquist) * this.freqData.length);
@@ -159,7 +183,12 @@ export class AudioEngine {
     return this.ctx.sampleRate / bestOffset;
   }
 
-  _detectBeat(energy, now, beatSensitivity) {
+  // ACCESSIBILITY: Enhanced beat detection for hearing-impaired users
+  // Detects different types of rhythm elements to map them to distinct visual symbols
+  // - Kick drum (bass beat): Low-frequency energy spikes → triggers circle pulses
+  // - Snare drum: Mid-frequency transients → triggers triangle flashes
+  // - Hi-hat/cymbals: High-frequency patterns → triggers small particles
+  _detectBeat(energy, now, beatSensitivity, bass, mid, treble) {
     this.energyHistory.push(energy);
     if (this.energyHistory.length > 48) this.energyHistory.shift();
 
@@ -176,8 +205,32 @@ export class AudioEngine {
     const beatIntensity = Math.max(0, (energy - dynamicThreshold) * 3.8 + flux * 2.2);
     const beat = beatIntensity > 0.1 && now - this.lastBeatTime > cooldown;
 
+    // ACCESSIBILITY: Detect specific drum types by frequency analysis
+    // Kick: strong bass presence (20-220Hz) - creates large circle pulses
+    const kickDetected = bass > 0.5 && beat;
+    
+    // Snare: mid-frequency spike (220-2000Hz) with sharp attack - creates triangle flashes
+    const snareDetected = mid > 0.45 && flux > 0.08 && !kickDetected;
+    
+    // Hi-hat: treble energy (2000-9000Hz) - creates small particle bursts
+    const hihatDetected = treble > 0.35;
+
     if (beat) this.lastBeatTime = now;
-    return { beat, beatIntensity: Math.min(1.8, beatIntensity) };
+    
+    return { 
+      beat, 
+      beatIntensity: Math.min(1.8, beatIntensity),
+      kickDetected,
+  // ACCESSIBILITY: Detect song sections (Intro, Verse, Build, Chorus, Drop)
+  // Helps hearing-impaired users understand song structure and energy changes
+  // Different sections have different visual characteristics:
+  // - Intro/Verse: Calmer, smaller visuals
+  // - Build: Increasing energy and size
+  // - Chorus: Medium energy, rhythmic patterns
+  // - Drop: Maximum energy, largest and brightest visuals
+      snareDetected,
+      hihatDetected
+    };
   }
 
   _updateSection(energy, beatIntensity, now) {
@@ -210,10 +263,13 @@ export class AudioEngine {
     const spectrum = this.freqData;
 
     const now = this.ctx.currentTime;
-    const { beat, beatIntensity } = this._detectBeat(amplitude, now, beatSensitivity);
+    const { beat, beatIntensity, kickDetected, snareDetected, hihatDetected } = 
+      this._detectBeat(amplitude, now, beatSensitivity, bass, mid, treble);
     const pitch = this._estimatePitch();
     const section = this._updateSection(amplitude, beatIntensity, now);
 
+    // ACCESSIBILITY: Return comprehensive rhythm data for visual mapping
+    // Each element gets a distinct visual representation for hearing-impaired users
     return {
       time: now,
       amplitude,
@@ -225,6 +281,10 @@ export class AudioEngine {
       treble,
       pitch,
       section,
+      // Specific rhythm element detection
+      kickDetected,      // → Circle pulse
+      snareDetected,     // → Triangle flash
+      hihatDetected,     // → Particle burst
       freqBandColors: {
         bass: '#ff3b3b',
         mid: '#44b7ff',

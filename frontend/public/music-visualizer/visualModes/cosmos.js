@@ -1,3 +1,14 @@
+/**
+ * COSMIC CONCERT MODE
+ * 
+ * ACCESSIBILITY NOTES:
+ * - Stars twinkle with rhythm: Shows beat timing and treble intensity
+ * - Expanding rings from center: Clear beat indicators for hearing-impaired users
+ * - Ring expansion speed: Shows beat strength/intensity
+ * - Wavy melody line: Shows pitch/melody movement (when present)
+ * - Star brightness increases on beats: Additional visual rhythm cue
+ */
+
 export class CosmicConcertMode {
   constructor() {
     this.stars = [];
@@ -38,6 +49,8 @@ export class CosmicConcertMode {
     const cx = width / 2;
     const cy = height / 2;
 
+    // ACCESSIBILITY: Stars brighten on beat and with treble
+    // Provides visual rhythm and high-frequency indicators for hearing-impaired users
     for (let i = 0; i < this.stars.length; i++) {
       const s = this.stars[i];
       const sparkle = (Math.sin(t * 2.5 + s.twinkle) + 1) * 0.5;
@@ -49,6 +62,8 @@ export class CosmicConcertMode {
       ctx.fillRect(s.x, s.y, size, size);
     }
 
+    // ACCESSIBILITY: Beat rings expand from center
+    // Clear visual indicator of rhythm timing and beat strength
     if (data.beat) {
       this.trails.push({ r: 12, life: 1, power: Math.max(0.45, data.bass * sensitivity.beat) });
     }
@@ -74,6 +89,8 @@ export class CosmicConcertMode {
       ctx.stroke();
     }
 
+    // ACCESSIBILITY: Melody line shows pitch movement
+    // Helps hearing-impaired users see melodic contour visually
     if (data.pitch > 0) {
       const pitchNorm = Math.min(1, data.pitch / 1100);
       ctx.strokeStyle = `${theme.secondary}aa`;

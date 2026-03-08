@@ -1,3 +1,15 @@
+/**
+ * RHYTHM PULSE WALL MODE
+ * 
+ * ACCESSIBILITY NOTES:
+ * - Vertical bars show frequency spectrum across the audio range
+ * - Left side: Bass frequencies (low pitch) - Red colors
+ * - Right side: Treble frequencies (high pitch) - Purple/Blue colors
+ * - Bar height changes: Shows volume at each frequency
+ * - Pulse upward on beat: Clear visual beat indicator for hearing-impaired users
+ * - Color coding helps distinguish different frequency ranges without hearing
+ */
+
 export class RhythmPulseWallMode {
   render(ctx, data, t, width, height, theme, sensitivity) {
     const bars = 72;
@@ -18,11 +30,16 @@ export class RhythmPulseWallMode {
       const animFloor = 0.03 + (Math.sin(t * 3.8 + i * 0.43) + 1) * 0.04;
       const spec = Math.min(1, rawSpec * sideWeight + animFloor);
 
+      // ACCESSIBILITY: Beat causes visible upward pulse
+      // Makes rhythm visible for hearing-impaired users
       const pulse = data.beat ? data.beatIntensity * sensitivity.beat * 0.85 : 0;
       const h = Math.max(10, (spec * 0.95 + data.amplitude * 0.42) * height * 0.9);
       const y = height - h;
       const push = pulse * 22;
 
+      // ACCESSIBILITY: Color coding by frequency
+      // Low frequency (bass) = red/orange, High frequency (treble) = blue/purple
+      // Helps hearing-impaired users distinguish frequency ranges visually
       const hue = 270 - spec * 240;
       const glow = 14 + data.amplitude * 22;
 

@@ -134,11 +134,162 @@ audio {
   transition: background 0.12s linear, transform 0.12s linear;
 }
 
+/* Visual Language Legend for Hearing-Impaired Users */
+.visual-legend {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  z-index: 20;
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(10, 14, 22, 0.92);
+  border: 2px solid rgba(127, 200, 255, 0.4);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.visual-legend h3 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  color: #b9d9ff;
+  text-align: center;
+  border-bottom: 1px solid rgba(127, 200, 255, 0.3);
+  padding-bottom: 8px;
+}
+
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.legend-symbol {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.circle-symbol {
+  background: radial-gradient(circle, rgba(255, 60, 60, 0.8), rgba(255, 60, 60, 0.2));
+  border-radius: 50%;
+  border: 2px solid rgba(255, 100, 100, 0.6);
+}
+
+.triangle-symbol {
+  position: relative;
+}
+
+.triangle-symbol::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 18px solid transparent;
+  border-right: 18px solid transparent;
+  border-bottom: 31px solid rgba(100, 200, 255, 0.8);
+  top: 4px;
+  left: 2px;
+}
+
+.particle-symbol {
+  position: relative;
+  background: rgba(180, 140, 255, 0.2);
+  border-radius: 8px;
+}
+
+.particle-symbol::before,
+.particle-symbol::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(180, 140, 255, 0.9);
+  border-radius: 50%;
+}
+
+.particle-symbol::before {
+  top: 8px;
+  left: 8px;
+}
+
+.particle-symbol::after {
+  bottom: 8px;
+  right: 8px;
+}
+
+.wave-symbol {
+  position: relative;
+}
+
+.wave-symbol::before,
+.wave-symbol::after {
+  content: '';
+  position: absolute;
+  border: 2px solid rgba(255, 100, 50, 0.7);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.wave-symbol::before {
+  width: 24px;
+  height: 24px;
+}
+
+.wave-symbol::after {
+  width: 36px;
+  height: 36px;
+  opacity: 0.5;
+}
+
+.legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.legend-text strong {
+  font-size: 0.9rem;
+  color: #e9f0ff;
+  line-height: 1.3;
+}
+
+.legend-text span {
+  font-size: 0.78rem;
+  color: #a0b8d8;
+  line-height: 1.3;
+}
+
 @media (max-width: 820px) {
   .panel {
     width: calc(100vw - 24px);
     left: 12px;
     top: 12px;
+  }
+
+  .visual-legend {
+    top: auto;
+    bottom: 80px;
+    right: 12px;
+    width: calc(100vw - 24px);
   }
 
   .group.row {

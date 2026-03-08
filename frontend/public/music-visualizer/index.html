@@ -39,7 +39,15 @@
           <option value="particles">Particle Storm</option>
           <option value="pulseWall">Rhythm Pulse Wall</option>
           <option value="cosmos">Cosmic Concert Mode</option>
+          <option value="accessible">Accessible Rhythm (Recommended for Hearing-Impaired)</option>
         </select>
+      </div>
+
+      <div class="group row">
+        <label class="inline">
+          <input id="accessibilityToggle" type="checkbox" /> 
+          Enhanced Accessibility Mode
+        </label>
       </div>
 
       <div class="group">
@@ -80,6 +88,41 @@
 
     <div id="beatIndicator" class="beat-indicator"></div>
     <div id="rhythmMarkers" class="rhythm-markers"></div>
+
+    <!-- Visual Language Legend for Hearing-Impaired Users -->
+    <div id="visualLegend" class="visual-legend" style="display: none;">
+      <h3>Visual Rhythm Guide</h3>
+      <div class="legend-items">
+        <div class="legend-item">
+          <div class="legend-symbol circle-symbol"></div>
+          <div class="legend-text">
+            <strong>Circle Pulse (Center)</strong>
+            <span>Kick / Bass Beat - Main rhythm</span>
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-symbol triangle-symbol"></div>
+          <div class="legend-text">
+            <strong>Triangle Flash (Sides)</strong>
+            <span>Snare Hit - Rhythm accent</span>
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-symbol particle-symbol"></div>
+          <div class="legend-text">
+            <strong>Small Particles</strong>
+            <span>Hi-hat / Treble - High frequency details</span>
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-symbol wave-symbol"></div>
+          <div class="legend-text">
+            <strong>Expanding Waves</strong>
+            <span>Bass Energy - Low frequency power</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>

@@ -1,3 +1,5 @@
+// ACCESSIBILITY: Color themes optimized for visibility
+// High contrast options to help hearing-impaired users distinguish visual elements
 const THEMES = {
   ice: { primary: '#b8f1ff', secondary: '#4d8dff', accent: '#effbff' },
   sunset: { primary: '#ff2a2a', secondary: '#ff7a00', accent: '#ffd166' }

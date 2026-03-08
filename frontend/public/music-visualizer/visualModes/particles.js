@@ -1,3 +1,13 @@
+/**
+ * PARTICLE STORM MODE
+ * 
+ * ACCESSIBILITY NOTES:
+ * - Particles expand outward on beats to show rhythm visually
+ * - Treble frequency creates brightness flashes for texture awareness
+ * - Mid-frequency causes rotation for movement awareness
+ * - Clear visual feedback for hearing-impaired users through motion patterns
+ */
+
 export class ParticleStormMode {
   constructor() {
     this.particles = [];
@@ -19,6 +29,8 @@ export class ParticleStormMode {
   render(ctx, data, t, width, height, theme, sensitivity) {
     this._init(width, height);
 
+    // ACCESSIBILITY: Beat detection causes visible particle explosion
+    // Helps hearing-impaired users see when beats occur
     if (data.beat) {
       const cx = width / 2;
       const cy = height / 2;
@@ -57,6 +69,8 @@ export class ParticleStormMode {
       if (p.y < 0) p.y += height;
       if (p.y > height) p.y -= height;
 
+      // ACCESSIBILITY: Treble frequency controls brightness
+      // Brighter particles = higher frequencies, helping visualize sound texture
       const flash = data.treble * 0.9;
       const alpha = 0.1 + flash * 0.7;
       ctx.fillStyle = `rgba(178, 228, 255, ${alpha})`;

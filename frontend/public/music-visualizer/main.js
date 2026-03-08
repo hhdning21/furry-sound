@@ -3,6 +3,7 @@ import { ResonanceWaterMode } from './visualModes/water.js';
 import { ParticleStormMode } from './visualModes/particles.js';
 import { RhythmPulseWallMode } from './visualModes/pulseWall.js';
 import { CosmicConcertMode } from './visualModes/cosmos.js';
+import { AccessibleRhythmMode } from './visualModes/accessible.js';
 import { setupUI, setupRhythmMarkers } from './uiControls.js';
 
 const canvas = document.getElementById('stage');
@@ -14,17 +15,21 @@ const beatLabel = document.getElementById('beatLabel');
 const beatIndicator = document.getElementById('beatIndicator');
 const rhythmMarkersEl = document.getElementById('rhythmMarkers');
 const micBtn = document.getElementById('micBtn');
+const visualLegend = document.getElementById('visualLegend');
+const accessibilityToggle = document.getElementById('accessibilityToggle');
 
 const rhythmMarkers = setupRhythmMarkers(rhythmMarkersEl, 16);
 
 const engine = new AudioEngine();
 await engine.initWithMediaElement(audioPlayer);
 
+// ACCESSIBILITY: Visualization modes including hearing-impaired friendly mode
 const modes = {
   water: new ResonanceWaterMode(),
   particles: new ParticleStormMode(),
   pulseWall: new RhythmPulseWallMode(),
-  cosmos: new CosmicConcertMode()
+  cosmos: new CosmicConcertMode(),
+  accessible: new AccessibleRhythmMode()  // Designed for hearing-impaired users
 };
 
 let activeMode = 'water';
@@ -32,6 +37,36 @@ let prevMode = 'water';
 let transition = 1;
 let beatPulse = 0;
 let markerHead = 0;
+let viewportWidth = window.innerWidth;
+let viewportHeight = window.innerHeight;
+
+// Rendering fix: keep canvas bitmap resolution in sync with screen size and DPI.
+// This prevents blurry upscaling and keeps drawing in full-screen CSS pixels.
+function resizeCanvas() {
+  viewportWidth = window.innerWidth;
+  viewportHeight = window.innerHeight;
+
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(viewportWidth * dpr);
+  canvas.height = Math.floor(viewportHeight * dpr);
+  canvas.style.width = `${viewportWidth}px`;
+  canvas.style.height = `${viewportHeight}px`;
+
+  // Draw using CSS-pixel coordinates while keeping high-DPI sharpness.
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ACCESSIBILITY: Handle accessibility mode toggle
+// Enables enhanced contrast, larger shapes, and simplified visuals
+accessibilityToggle.addEventListener('change', (e) => {
+  const enabled = e.target.checked;
+  if (modes.accessible) {
+    modes.accessible.enableAccessibilityMode(enabled);
+  }
+});
 
 const ui = setupUI({
   fileInput: document.getElementById('fileInput'),
@@ -72,32 +107,45 @@ const ui = setupUI({
     prevMode = activeMode;
     activeMode = nextMode;
     transition = 0;
+    
+    // ACCESSIBILITY: Show/hide visual legend when accessible mode is selected
+    // The legend helps hearing-impaired users understand the visual language
+    if (nextMode === 'accessible') {
+      visualLegend.style.display = 'block';
+    } else {
+      visualLegend.style.display = 'none';
+    }
   }
 });
-
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
-
+// ACCESSIBILITY: Update visual indicators for hearing-impaired users
+// Provides clear, non-audio feedback about rhythm and musical structure
 function updateAccessibility(data) {
   sectionLabel.textContent = data.section;
   pitchLabel.textContent = data.pitch > 0 ? `${Math.round(data.pitch)} Hz` : '-- Hz';
-  beatLabel.textContent = data.beat ? 'Yes' : 'No';
+  
+  // Enhanced beat indication
+  const beatStatus = data.kickDetected ? 'Kick' : 
+                     data.snareDetected ? 'Snare' : 
+                     data.beat ? 'Yes' : 'No';
+  beatLabel.textContent = beatStatus;
 
   if (data.beat) {
     beatPulse = 1;
     markerHead = (markerHead + 1) % rhythmMarkers.length;
     rhythmMarkers.forEach((node, i) => {
       const isHead = i === markerHead;
-      node.style.background = isHead ? 'rgba(129, 244, 255, 0.95)' : 'rgba(255,255,255,0.16)';
+      // Color-code by beat type for accessibility
+      const beatColor = data.kickDetected ? 'rgba(255, 100, 100, 0.95)' :
+                        data.snareDetected ? 'rgba(100, 200, 255, 0.95)' :
+                        'rgba(129, 244, 255, 0.95)';
+      node.style.background = isHead ? beatColor : 'rgba(255,255,255,0.16)';
       node.style.transform = isHead ? 'scaleY(1.7)' : 'scaleY(1)';
     });
 
     if (ui.hapticEnabled() && navigator.vibrate) {
-      navigator.vibrate(15);
+      // Vary haptic intensity by beat type for accessibility
+      const vibrateDuration = data.kickDetected ? 25 : data.snareDetected ? 15 : 12;
+      navigator.vibrate(vibrateDuration);
     }
   }
 
@@ -107,8 +155,8 @@ function updateAccessibility(data) {
 }
 
 function drawColorBandCue(data) {
-  const w = canvas.width;
-  const h = canvas.height;
+  const w = viewportWidth;
+  const h = viewportHeight;
 
   const bassW = Math.max(2, data.bass * w * 0.28);
   const midW = Math.max(2, data.mid * w * 0.28);
@@ -133,20 +181,20 @@ function frame(ts) {
   const t = ts / 1000;
   const theme = ui.getTheme();
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
   if (transition < 1 && modes[prevMode]) {
     transition = Math.min(1, transition + 0.045);
 
     ctx.save();
     ctx.globalAlpha = 1 - transition;
-    modes[prevMode].render(ctx, data, t, canvas.width, canvas.height, theme, sensitivity);
+    modes[prevMode].render(ctx, data, t, viewportWidth, viewportHeight, theme, sensitivity);
     ctx.restore();
   }
 
   ctx.save();
   ctx.globalAlpha = transition;
-  modes[activeMode].render(ctx, data, t, canvas.width, canvas.height, theme, sensitivity);
+  modes[activeMode].render(ctx, data, t, viewportWidth, viewportHeight, theme, sensitivity);
   ctx.restore();
 
   updateAccessibility(data);
