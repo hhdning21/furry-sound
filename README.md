@@ -182,36 +182,36 @@ Visit `http://localhost:5173/music-visualizer/` for the full experience:
 
 ---
 
-## 🏗️ 项目结构 / Project Structure
+## 🏗️ Project Structure
 
 ```
 fuzzy-garbanzo/
-├── backend/                    # 后端服务 / Backend service
-│   ├── index.js               # Express服务器入口 / Express server entry
-│   ├── librosa_analyzer.py    # Python音频分析脚本 / Python audio analysis
-│   ├── geminiClient.js        # Gemini AI客户端 / Gemini AI client
-│   ├── requirements.txt       # Python依赖 / Python dependencies
-│   └── package.json           # Node依赖 / Node dependencies
+├── backend/                    # Backend service
+│   ├── index.js               # Express server entry
+│   ├── librosa_analyzer.py    # Python audio analysis
+│   ├── geminiClient.js        # Gemini AI client
+│   ├── requirements.txt       # Python dependencies
+│   └── package.json           # Node dependencies
 │
-├── frontend/                   # 前端应用 / Frontend application
-│   ├── src/                   # React主应用源码 / React main app source
-│   │   ├── App.tsx           # 主应用组件 / Main app component
-│   │   ├── components/        # React组件 / React components
+├── frontend/                   # Frontend application
+│   ├── src/                   # React main app source
+│   │   ├── App.tsx           # Main app component
+│   │   ├── components/        # React components
 │   │   └── hooks/             # React Hooks
 │   │
 │   └── public/
-│       └── music-visualizer/  # 独立音乐可视化器 / Standalone visualizer
-│           ├── index.html     # 可视化器入口 / Visualizer entry
-│           ├── main.js        # 主控制器 / Main controller
-│           ├── audioEngine.js # 音频分析引擎 / Audio analysis engine
-│           ├── uiControls.js  # UI控制 / UI controls
-│           └── visualModes/   # 可视化模式 / Visualization modes
-│               ├── interactive.js  # 🎮 互动节奏游戏 / Rhythm game
-│               ├── water.js        # 水波效果 / Water effect
-│               ├── pulseWall.js    # 脉冲墙 / Pulse wall
-│               └── accessible.js   # 无障碍模式 / Accessible mode
+│       └── music-visualizer/  # Standalone visualizer
+│           ├── index.html     # Visualizer entry
+│           ├── main.js        # Main controller
+│           ├── audioEngine.js # Audio analysis engine
+│           ├── uiControls.js  # UI controls
+│           └── visualModes/   # Visualization modes
+│               ├── interactive.js  # Rhythm game
+│               ├── water.js        # Water effect
+│               ├── pulseWall.js    # Pulse wall
+│               └── accessible.js   # Accessible mode
 │
-└── fuzzy/                      # Python虚拟环境 / Python venv
+└── fuzzy/                      # Python venv
     └── ...
 ```
 
